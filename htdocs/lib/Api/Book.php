@@ -45,7 +45,7 @@ class Book extends ApiBase {
 	}
 
 	public function getBookByIsbn($isbn) {
-		$url = "https://api.douban.com/v2/book/{$isbn}";
+		$url = "https://api.douban.com/v2/book/isbn/{$isbn}";
 		$response = file_get_contents($url);
 
 		$book = json_decode($response);
