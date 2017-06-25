@@ -7,8 +7,13 @@
 namespace Api;
 
 class Book extends ApiBase {
-	public function search($key) {
-		$url = "https://api.douban.com/v2/book/search?q={$key}";
+	public function search($key, $count = 20, $page = 0) {
+		$url = "https://api.douban.com/v2/book/search?"
+			. http_build_query([
+				'q'     => $key,
+				'start' => $count * $page,
+				'count' => $count
+			]);
 		$response = file_get_contents($url);
 
 		$json = json_decode($response);
