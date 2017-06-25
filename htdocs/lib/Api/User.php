@@ -255,7 +255,7 @@ class User extends ApiBase {
 		$this->checkAuth();
 
 		// check book in Douban
-		$url = "https://api.douban.com/v2/book/isbn/{$isbn}";
+		$url = "https://api.douban.com/v2/book/{$isbn}";
 		$response = file_get_contents($url);
 
 		$doubanBook = json_decode($response);
