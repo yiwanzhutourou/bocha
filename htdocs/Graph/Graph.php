@@ -460,6 +460,7 @@ class MUserBook extends Data {
  * @property mixed author
  * @property mixed cover
  * @property mixed publisher
+ * @property mixed trueIsbn
  */
 class MBook extends Data {
 	public function __construct() {
@@ -471,20 +472,22 @@ class MBook extends Data {
 				'title'     => 'title',
 				'author'    => 'author',
 				'cover'     => 'cover',
-				'publisher' => 'publisher'
+				'publisher' => 'publisher',
+				'trueIsbn'  => 'true_isbn',
 			]
 		];
 		parent::init($options);
 	}
 
 	public function updateBook($doubanBook) {
-		$this->isbn = $doubanBook->isbn13;
+		$this->isbn = $doubanBook->id;
 		$one = $this->findOne();
 		if ($one === false) {
 			$this->title = $doubanBook->title;
 			$this->author = json_stringify($doubanBook->author);
 			$this->cover = $doubanBook->image;
 			$this->publisher = $doubanBook->publisher;
+			$this->trueIsbn = $doubanBook->isbn13;
 			$this->insert();
 		}
 	}

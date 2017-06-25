@@ -7,8 +7,13 @@
 namespace Api;
 
 class Book extends ApiBase {
-	public function search($key) {
-		$url = "https://api.douban.com/v2/book/search?q={$key}";
+	public function search($key, $count = 20, $page = 0) {
+		$url = "https://api.douban.com/v2/book/search?"
+			. http_build_query([
+				'q'     => $key,
+				'start' => $count * $page,
+				'count' => $count
+			]);
 		$response = file_get_contents($url);
 
 		$json = json_decode($response);
@@ -20,11 +25,11 @@ class Book extends ApiBase {
 				$added = false;
 				$user = \Visitor::instance()->getUser();
 				if ($user !== null) {
-					$added = $user->isBookAdded($book->isbn13);
+					$added = $user->isBookAdded($book->id);
 				}
 
 				$formatBooks[] = [
-					'isbn'      => $book->isbn13,
+					'isbn'      => $book->id,
 					'title'     => $book->title,
 					'author'    => $book->author,
 					'url'       => $book->alt,
@@ -40,7 +45,7 @@ class Book extends ApiBase {
 	}
 
 	public function getBookByIsbn($isbn) {
-		$url = "https://api.douban.com/v2/book/isbn/{$isbn}";
+		$url = "https://api.douban.com/v2/book/{$isbn}";
 		$response = file_get_contents($url);
 
 		$book = json_decode($response);
@@ -48,11 +53,11 @@ class Book extends ApiBase {
 			$added = false;
 			$user = \Visitor::instance()->getUser();
 			if ($user !== null) {
-				$added = $user->isBookAdded($book->isbn13);
+				$added = $user->isBookAdded($book->id);
 			}
 
 			$formatBooks[] = [
-				'isbn'      => $book->isbn13,
+				'isbn'      => $book->id,
 				'title'     => $book->title,
 				'author'    => $book->author,
 				'url'       => $book->alt,
