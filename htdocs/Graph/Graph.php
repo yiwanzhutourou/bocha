@@ -42,7 +42,7 @@ class DataConnection {
 			if (mysqli_connect_errno()) {
 				throw new \Exception('Connect db error: ' . mysqli_connect_error());
 			}
-			if (!self::$connection->set_charset('utf8')) {
+			if (!self::$connection->set_charset('utf8mb4')) {
 				throw new \Exception('Set charset error: ' . mysqli_connect_error());
 			}
 		}
