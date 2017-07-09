@@ -187,7 +187,7 @@ class Data {
 			}
 		}
 		$key = $this->key;
-		$sql = "select * from {$this->table} $where ORDER BY {$this->columns[$key]} DESC";
+		$sql = "select * from {$this->table} $where ORDER BY {$this->columns[$key]} DESC limit 20";
 		$connection = DataConnection::getConnection();
 		if ($connection == null) {
 			return null;
