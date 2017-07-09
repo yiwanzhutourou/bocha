@@ -220,8 +220,7 @@ class Data {
 				$where .= " and $dbCol = '{$this->$objCol}'";
 			}
 		}
-		$key = $this->key;
-		$sql = "select * from {$this->table} $where ORDER BY {$this->columns[$key]} DESC";
+		$sql = "select * from {$this->table} $where";
 		$connection = DataConnection::getConnection();
 		if ($connection == null) {
 			return null;
