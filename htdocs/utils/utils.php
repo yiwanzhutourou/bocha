@@ -75,3 +75,35 @@ function getDistance($lat1, $lng1, $lat2, $lng2) {
 
 	return round($calculatedDistance, 1);
 }
+
+/**
+ * 经纬度获取省份\城市\区县
+ *
+ * @param $lat
+ * @param $lng
+ * @return array|mixed
+ */
+function reversePoi($lat, $lng) {
+	$url = "http://api.map.baidu.com/geocoder/v2/?"
+		   . http_build_query([
+								  'location' => $lat.','.$lng,
+								  'output'   => 'json',
+								  'pois'     => 1,
+								  'ak'       => BAIDU_MAP_AK
+							  ]);
+	$response = file_get_contents($url);
+	$location = json_decode($response);
+	if ($location !== null && $location->status === 0) {
+		if (!empty($location->result)) {
+			$address = $location->result->addressComponent;
+			if (!empty($address)) {
+				return json_stringify([
+					'province' => $address->province,
+					'city'     => $address->city,
+					'district' => $address->district
+				]);
+			}
+		}
+	}
+	return 'null';
+}

@@ -145,11 +145,23 @@ class User extends ApiBase {
 		/** @var MUserInfo $info */
 		$info = $one->getInfo();
 
+		// user address
+		$addressList = array_map(function($address) {
+			return [
+				'name'      => $address->name,
+				'detail'    => $address->detail,
+				'latitude'  => $address->latitude,
+				'longitude' => $address->longitude,
+				'city'      => json_decode($address->city)
+			];
+		}, $one->getAddressList());
+
 		if ($one !== false) {
 			return [
 				'info'     => $info === false ? '' : $info->info,
 				'nickname' => $one->nickname,
-				'avatar'   => $one->avatar
+				'avatar'   => $one->avatar,
+				'address'  => $addressList
 			];
 		}
 		throw new Exception(Exception::RESOURCE_NOT_FOUND, '用户不存在');
@@ -334,6 +346,7 @@ class User extends ApiBase {
 		if ($userAddress->findOne() !== false) {
 			throw new Exception(Exception::RESOURCE_ALREADY_ADDED , '不可以添加重复的地址哦~');
 		} else {
+			$userAddress->city = reversePoi($latitude, $longitude);
 			$userAddress->insert();
 		}
 		return $name;

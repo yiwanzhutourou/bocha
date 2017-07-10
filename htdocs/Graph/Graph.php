@@ -412,6 +412,7 @@ class MUserInfo extends Data {
  * @property mixed detail
  * @property mixed longitude
  * @property mixed latitude
+ * @property mixed city
  */
 class MUserAddress extends Data {
 	public function __construct() {
@@ -419,12 +420,13 @@ class MUserAddress extends Data {
 			'key'     => 'id',
 			'table'   => 'bocha_user_address',
 			'columns' => [
-				'id'          => '_id',
-				'userId'     => 'user_id',
-				'name'     => 'address',
-				'detail'     => 'detail',
-				'longitude'     => 'longitude',
-				'latitude'     => 'latitude'
+				'id'        => '_id',
+				'userId'    => 'user_id',
+				'name'      => 'address',
+				'detail'    => 'detail',
+				'longitude' => 'longitude',
+				'latitude'  => 'latitude',
+				'city'      => 'city'
 			]
 		];
 		parent::init($options);
