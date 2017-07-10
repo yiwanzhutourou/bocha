@@ -86,6 +86,46 @@ class Search extends ApiBase {
 		return $result;
 	}
 
+	public function users($keyword, $longitude = 0, $latitude = 0,
+							   $count = 100, $page = 0) {
+		if (empty($keyword)) {
+			return [];
+		}
+		$offset = $page * $count;
+		$query = new MUser();
+		$users = $query->query(
+			"nickname LIKE '%{$keyword}%'"
+			. " LIMIT {$offset},{$count}"
+		);
+		$result = array_map(function($user) use ($longitude, $latitude) {
+			/** @var MUser $user */
+			$addresses = array_map(function($address) use ($longitude, $latitude) {
+
+				$distance = getDistance($latitude, $longitude,
+										$address->latitude, $address->longitude);
+				return [
+					'distance'  => $distance,
+					'distanceText'  => getDistanceString($distance),
+					'latitude'  => $address->latitude,
+					'longitude' => $address->longitude,
+					'name'      => $address->name,
+					'detail'    => $address->detail,
+					'city'      => json_decode($address->city)
+				];
+			}, $user->getAddressList());
+			usort($addresses, function($a, $b) {
+				return ($a['distance'] > $b['distance']) ? 1 : -1;
+			});
+			return [
+				'id'          => $user->id,
+				'nickname'    => $user->nickname,
+				'avatar'      => $user->avatar,
+				'address' => array_values($addresses)[0]
+			];
+		}, $users);
+		return $result;
+	}
+
 	private static function parseAuthor($authorString) {
 		if (empty($authorString)) {
 			return '';
