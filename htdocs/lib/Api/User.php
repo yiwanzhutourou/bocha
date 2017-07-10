@@ -429,7 +429,7 @@ class User extends ApiBase {
 
 		$history = new MBorrowHistory();
 		$history->to = \Visitor::instance()->getUser()->id;
-		$list = $history->query('status < 3');
+		$list = $history->query('status < 3', 'ORDER BY _id DESC');
 
 		/** @var MBorrowHistory $one */
 		return array_map(function ($one) {

@@ -212,7 +212,7 @@ class Data {
 	/**
 	 * 先凑合着用吧
 	 */
-	public function query($query) {
+	public function query($query, $orderBy = '') {
 		$result = array();
 		$where = 'where 1=1 and ' . $query;
 		foreach ($this->columns as $objCol => $dbCol) {
@@ -220,7 +220,7 @@ class Data {
 				$where .= " and $dbCol = '{$this->$objCol}'";
 			}
 		}
-		$sql = "select * from {$this->table} $where";
+		$sql = "select * from {$this->table} {$where} {$orderBy}";
 		$connection = DataConnection::getConnection();
 		if ($connection == null) {
 			return null;
