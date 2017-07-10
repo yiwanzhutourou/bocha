@@ -22,10 +22,8 @@ class Map extends ApiBase {
 	public function getMarkers() {
 		$userAddress = new MUserAddress();
 		return array_map(function ($address) {
-			$user = Graph::findUserById($address->userId);
 			return [
 				'id'        => $address->userId,
-				'title'			=> $user->nickname,
 				'latitude'  => $address->latitude,
 				'longitude' => $address->longitude,
 			];
@@ -57,5 +55,32 @@ class Map extends ApiBase {
 				'longitude'	=> $address->longitude,
 			];
 		}, $userAddress->query($query));
+	}
+
+	/**
+	 * 获取一组、或者一个用户ID的相关信息
+	 */
+	public function getUserAddresses($userIds) {
+		$userIdArray = split(',', $userIds);
+		$result = [];
+		foreach ($userIdArray as $userId) {
+			$uid = trim($userId);
+			if ($uid && count($uid) > 0) {
+				$user = Graph::findUserById($userId);
+				$address = Graph::findUserAddress($userId);
+				$result[] = [
+					'id' 				=> $userId,
+					'nickname' 	=> $user->nickname,
+					'avatar' 		=> $user->avatar,
+					'address'		=> [
+						'latitude'  => $address->latitude,
+						'longitude' => $address->longitude,
+						'name'      => $address->name,
+						'detail'    => $address->detail
+					]
+				];
+			}
+		}
+		return $result;
 	}
 }
