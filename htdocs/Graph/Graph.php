@@ -25,6 +25,12 @@ class Graph {
 		return $book->findOne();
 	}
 
+	public static function findUserAddress($userId) {
+		$address = new MUserAddress();
+		$address->userId = $userId;
+		return $address->findOne();
+	}
+
 	public static function findXu($name) {
 		$xu = new \Graph\MXu();
 		$xu->name = $name;
