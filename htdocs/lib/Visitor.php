@@ -39,4 +39,8 @@ class Visitor {
 	public function isLogin() {
 		return $this->user != null;
 	}
+
+	public function hasMobile() {
+		return $this->user != null && !empty($this->user->mobile);
+	}
 }

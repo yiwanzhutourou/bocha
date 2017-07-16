@@ -14,6 +14,7 @@ class Exception extends \Exception {
 
 	const BAD_REQUEST = 2007;
 	const AUTH_FAILED = 2008;
+	const AUTH_FAILED_NO_MOBILE = 2009;
 
 	const WEIXIN_AUTH_FAILED = 3001;
 

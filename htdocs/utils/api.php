@@ -36,7 +36,7 @@ function api($api_name, $data, $callContext = null) {
 		$result = call_user_func_array([$api, $method], $callPars);
 		return $result;
 	} catch (Exception $e) {
-		throw new Exception(Exception::INTERNAL_ERROR, $e->getMessage());
+		throw new Exception($e->getCode(), $e->getMessage());
 	}
 }
 

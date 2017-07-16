@@ -61,7 +61,10 @@ class User extends ApiBase {
 				$user->contact = "";
 				$user->insert();
 			}
-			return $token;
+			return [
+				'token'     => $token,
+				'hasMobile' => $one !== false && !empty($one->mobile)
+			];
 		}
 
 		throw new Exception(Exception::WEIXIN_AUTH_FAILED, '无法获取openid');
@@ -496,7 +499,7 @@ class User extends ApiBase {
 		$sendSmsUser = Graph::findUserById($toUser);
 		if ($sendSmsUser !== false && !empty($sendSmsUser->mobile)) {
 			sendBorrowBookSms(
-				$sendSmsUser->mobile, $sendSmsUser->nickname, $book->title);
+				$sendSmsUser->mobile, \Visitor::instance()->getUser()->nickname, $book->title);
 		}
 
 		return 'ok';
@@ -564,7 +567,7 @@ class User extends ApiBase {
 	}
 
 	public function requestVerifyCode($mobile) {
-		$this->checkAuth();
+		$this->checkAuth(true/* 验证短信当然不能要求人家已经绑了手机啦,这简直就是跟着客户端一起二 */);
 
 		$user = \Visitor::instance()->getUser();
 		if (!empty($user->mobile) && $user->mobile === $mobile) {
@@ -587,7 +590,7 @@ class User extends ApiBase {
 	}
 	
 	public function verifyCode($mobile, $code) {
-		$this->checkAuth();
+		$this->checkAuth(true);
 
 		$user = \Visitor::instance()->getUser();
 		/** @var MSmsCode $verifyCode */
@@ -695,8 +698,12 @@ class User extends ApiBase {
 		return true;
 	}
 
-	private function checkAuth() {
+	private function checkAuth($skipMobile = false) {
 		if (!\Visitor::instance()->isLogin())
-			throw new Exception(Exception::AUTH_FAILED, '未获取用户授权');
+			throw new Exception(Exception::AUTH_FAILED, '未登录');
+		if (!$skipMobile) {
+			if (!\Visitor::instance()->hasMobile())
+				throw new Exception(Exception::AUTH_FAILED_NO_MOBILE, '未绑定手机号');
+		}
 	}
 }
