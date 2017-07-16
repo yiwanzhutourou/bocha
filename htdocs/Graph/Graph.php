@@ -19,6 +19,18 @@ class Graph {
 		return $user->load();
 	}
 
+	public static function findMobileByUserId($id) {
+		$query = new MUser();
+		$query->id = $id;
+		/** @var MUser $user */
+		$user = $query->load();
+
+		if ($user !== false) {
+			return $user->mobile;
+		}
+		return null;
+	}
+
 	public static function findBook($isbn) {
 		$book = new MBook();
 		$book->isbn = $isbn;
@@ -35,6 +47,42 @@ class Graph {
 		$xu = new \Graph\MXu();
 		$xu->name = $name;
 		return $xu->findOne();
+	}
+
+	public static function insertSmsCode($userId, $mobile, $code) {
+		$query = new MSmsCode();
+		$query->userId = $userId;
+		$query->mobile = $mobile;
+
+		/** @var MSmsCode $smsCode */
+		$smsCode = $query->findOne();
+		if ($smsCode === false) {
+			$query->code = $code;
+			$query->createTime = strtotime('now');
+			$query->insert();
+		} else {
+			// 直接覆盖
+			$smsCode ->code = $code;
+			$smsCode->createTime = strtotime('now');
+			$smsCode->update();
+		}
+	}
+
+	public static function findCode($userId, $mobile, $code) {
+		$query = new MSmsCode();
+		$query->userId = $userId;
+		$query->mobile = $mobile;
+		$query->code = $code;
+
+		return $query->findOne();
+	}
+
+	public static function findCodeByUser($userId, $mobile) {
+		$query = new MSmsCode();
+		$query->userId = $userId;
+		$query->mobile = $mobile;
+
+		return $query->findOne();
 	}
 }
 
@@ -288,6 +336,7 @@ class Data {
  * @property mixed nickname
  * @property mixed avatar
  * @property mixed contact
+ * @property mixed mobile
  */
 class MUser extends Data {
 	public function __construct() {
@@ -295,15 +344,16 @@ class MUser extends Data {
 			'key' => 'id',
 			'table' => 'bocha_user',
 			'columns' => array(
-				'id' => 'user_id',
-				'token' => 'token',
-				'openId' => 'wechat_open_id',
-				'session' => 'wechat_session',
+				'id'         => 'user_id',
+				'token'      => 'token',
+				'openId'     => 'wechat_open_id',
+				'session'    => 'wechat_session',
 				'createTime' => 'create_time',
 				'expireTime' => 'expire_time',
-				'nickname' => 'nickname',
-				'avatar' => 'avatar',
-				'contact' => 'contact'
+				'nickname'   => 'nickname',
+				'avatar'     => 'avatar',
+				'contact'    => 'contact',
+				'mobile'     => 'mobile'
 			)
 		);
 		parent::init($options);
@@ -527,6 +577,31 @@ class MBorrowHistory extends Data {
 				'date'      => 'date',
 				'requestStatus'    => 'status',
 				'formId'    => 'form_id'
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
+ * Class MSmsCode
+ * @property mixed id
+ * @property mixed userId
+ * @property mixed mobile
+ * @property mixed code
+ * @property mixed createTime
+ */
+class MSmsCode extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_sms_code',
+			'columns' => [
+				'id'         => '_id',
+				'userId'     => 'user_id',
+				'mobile'     => 'mobile',
+				'code'       => 'code',
+				'createTime' => 'create_time'
 			]
 		];
 		parent::init($options);

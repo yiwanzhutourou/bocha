@@ -9,6 +9,7 @@ namespace Api;
 use Graph\Graph;
 use Graph\MBook;
 use Graph\MBorrowHistory;
+use Graph\MSmsCode;
 use Graph\MUser;
 use Graph\MUserAddress;
 use Graph\MUserBook;
@@ -482,22 +483,21 @@ class User extends ApiBase {
 			throw new Exception(Exception::REQUEST_TOO_MUCH, '您今天已经在他的书房里借阅了一本书~');
 		}
 
-		// send template message
-		// 先注掉吧,看来这条路是走不通了
-//		if ($this->sendBorrowBookMessage(
-//				\Visitor::instance()->getUser()->openId, $formId, $book->title,
-//				\Visitor::instance()->getUser()->nickname)) {
-			// insert history
-			$history->bookIsbn = $book->isbn;
-			$history->bookTitle = $book->title;
-			$history->bookCover = $book->cover;
-			$history->date = date('Y-m-d');
-			$history->formId = $formId;
-			$history->requestStatus = 0;
-			$history->insert();
-//
-//			return 'ok';
-//		}
+		$history->bookIsbn = $book->isbn;
+		$history->bookTitle = $book->title;
+		$history->bookCover = $book->cover;
+		$history->date = date('Y-m-d');
+		$history->formId = $formId;
+		$history->requestStatus = 0;
+		$history->insert();
+
+		// 发通知短信
+		/** @var MUser $sendSmsUser */
+		$sendSmsUser = Graph::findUserById($toUser);
+		if ($sendSmsUser !== false && !empty($sendSmsUser->mobile)) {
+			sendBorrowBookSms(
+				$sendSmsUser->mobile, $sendSmsUser->nickname, $book->title);
+		}
 
 		return 'ok';
 	}
@@ -561,6 +561,47 @@ class User extends ApiBase {
 		}
 
 		return 'success';
+	}
+
+	public function requestVerifyCode($mobile) {
+		$this->checkAuth();
+
+		$user = \Visitor::instance()->getUser();
+		if (!empty($user->mobile) && $user->mobile === $mobile) {
+			throw new Exception(Exception::RESOURCE_ALREADY_ADDED, '您已经绑定过这个手机号了~');
+		}
+
+		/** @var MSmsCode $verifyCode */
+		$verifyCode = Graph::findCodeByUser($user->id, $mobile);
+		if ($verifyCode !== false && (strtotime('now') - intval($verifyCode->createTime)) < 60) {
+			throw new Exception(Exception::REQUEST_TOO_MUCH, '请求过于频繁,请稍后再试~');
+		}
+		
+		$codeNum = randCode(6, 1); // 6位数字
+		if (sendVeriCodeSms($mobile, $codeNum)) {
+			Graph::insertSmsCode($user->id, $mobile, $codeNum);
+			return 'ok';
+		}
+
+		throw new Exception(Exception::INTERNAL_ERROR, '验证码发送失败,请稍后再试~');
+	}
+	
+	public function verifyCode($mobile, $code) {
+		$this->checkAuth();
+
+		$user = \Visitor::instance()->getUser();
+		/** @var MSmsCode $verifyCode */
+		$verifyCode = Graph::findCode($user->id, $mobile, $code);
+
+		if ($verifyCode !== false
+			&& ((intval($verifyCode->createTime) + 300) > strtotime('now'))) {
+			// TODO 要不要从数据库里删除?
+			$user->mobile = $mobile;
+			$user->update();
+			return 'ok';
+		}
+
+		throw new Exception(Exception::VERIFY_CODE_EXPIRED, '验证码错误或者已经过期,请重新发送验证码~');
 	}
 
 	private function sendDeclineBorrowBookMessage(

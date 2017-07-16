@@ -33,6 +33,7 @@ require_once ROOT . '/utils/url.php';
 require_once ROOT . '/utils/utf8.php';
 require_once ROOT . '/utils/utils.php';
 require_once ROOT . '/utils/api.php';
+require_once ROOT . '/utils/sms.php';
 
 // contant
 require_once ROOT . '/constant.php';
