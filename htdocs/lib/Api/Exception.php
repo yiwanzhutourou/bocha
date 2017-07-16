@@ -21,6 +21,7 @@ class Exception extends \Exception {
 	const RESOURCE_ALREADY_ADDED = 4002;
 
 	const REQUEST_TOO_MUCH = 5001;
+	const VERIFY_CODE_EXPIRED = 5002;
 
 	public $ext;
 
