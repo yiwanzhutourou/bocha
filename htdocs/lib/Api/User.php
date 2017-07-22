@@ -658,7 +658,7 @@ class User extends ApiBase {
 		return $this->sendWxTemplateMessage(
 			$toUserOpenId,
 			'Sp_-WuvoHxYBzxAJMXtH2gop8AwDHuwnzREOr-QkTr4',
-			'pages/user/history',
+			'pages/message/approved',
 			$formId,
 			[
 				'keyword1' => ['value' => $bookTitle],
@@ -674,7 +674,7 @@ class User extends ApiBase {
 		return $this->sendWxTemplateMessage(
 			$toUserOpenId,
 			'Sp_-WuvoHxYBzxAJMXtH2uPu7Iw-AtY2fS-zWRuroU4',
-			'pages/user/history',
+			'pages/user/request',
 			$formId,
 			[
 				'keyword1' => ['value' => $bookTitle],
