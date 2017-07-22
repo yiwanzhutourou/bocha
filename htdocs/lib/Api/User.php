@@ -137,18 +137,29 @@ class User extends ApiBase {
 	}
 
 	public function getHomepageData($userId = '') {
+		$isMe = false;
+
 		if ($userId === '') {
 			$this->checkAuth();
 			$userId = \Visitor::instance()->getUser()->id;
+			$isMe = true;
+		} else {
+			$isMe = \Visitor::instance()->isMe($userId);
 		}
 
 		$user = new MUser();
 		$user->id = $userId;
 		/** @var MUser $one */
 		$one = $user->findOne();
+		if ($one === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '用户不存在');
+		}
+
+		// 用户简介
 		/** @var MUserInfo $info */
 		$info = $one->getInfo();
 
+		// 地址列表
 		// user address
 		$addressList = array_map(function($address) {
 			return [
@@ -160,15 +171,34 @@ class User extends ApiBase {
 			];
 		}, $one->getAddressList());
 
-		if ($one !== false) {
-			return [
-				'info'     => $info === false ? '' : $info->info,
-				'nickname' => $one->nickname,
-				'avatar'   => $one->avatar,
-				'address'  => $addressList
-			];
+		// 图书列表
+		$userBooks = $one->getBookList();
+		$books = [];
+		/** @var MUserBook $userBook */
+		foreach ($userBooks as $userBook) {
+			$book = new MBook();
+			$book->isbn = $userBook->isbn;
+			/** @var MBook $bookOne */
+			$bookOne = $book->findOne();
+			if ($bookOne !== false) {
+				$books[] = [
+					'isbn'      => $bookOne->isbn,
+					'title'     => $bookOne->title,
+					'author'    => json_decode($bookOne->author),
+					'cover'     => $bookOne->cover,
+					'publisher' => $bookOne->publisher,
+				];
+			}
 		}
-		throw new Exception(Exception::RESOURCE_NOT_FOUND, '用户不存在');
+
+		return [
+			'info'     => $info === false ? '' : $info->info,
+			'nickname' => $one->nickname,
+			'avatar'   => $one->avatar,
+			'address'  => $addressList,
+			'books'    => $books,
+			'isMe'     => $isMe
+		];
 	}
 
 	public function getUserInfo($userId = '') {

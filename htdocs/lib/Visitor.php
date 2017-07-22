@@ -36,6 +36,10 @@ class Visitor {
 		return $this->user;
 	}
 
+	public function isMe($userId) {
+		return $this->user != null && $this->user->id === $userId;
+	}
+
 	public function isLogin() {
 		return $this->user != null;
 	}
