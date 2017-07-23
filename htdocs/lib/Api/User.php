@@ -136,9 +136,57 @@ class User extends ApiBase {
 		return $userContact;
 	}
 
-	public function getHomepageData($userId = '') {
-		$isMe = false;
+	public function getGuideInfo() {
+		$this->checkAuth();
+		$userId = \Visitor::instance()->getUser()->id;
 
+		$user = new MUser();
+		$user->id = $userId;
+		/** @var MUser $one */
+		$one = $user->findOne();
+		if ($one === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '用户不存在');
+		}
+
+		// 用户简介
+		/** @var MUserInfo $info */
+		$info = $one->getInfo();
+
+		// 地址列表
+		// user address
+		$addressList = array_map(function($address) {
+			return [
+				'name'      => $address->name,
+				'detail'    => $address->detail,
+				'latitude'  => $address->latitude,
+				'longitude' => $address->longitude,
+				'city'      => json_decode($address->city)
+			];
+		}, $one->getAddressList());
+
+		// 联系方式
+		$contactData = [];
+		$contactJson = \Visitor::instance()->getUser()->contact;
+		$contact = json_decode($contactJson);
+		if (isset($contact->name) && isset($contact->contact)) {
+			if (in_array($contact->name, ['微信', 'QQ', '邮箱'])
+				&& !empty($contact->contact)
+			) {
+				$contactData = [
+					'name'    => $contact->name,
+					'contact' => $contact->contact
+				];
+			}
+		}
+
+		return [
+			'info'     => $info === false ? '' : $info->info,
+			'address'  => $addressList,
+			'contact'  => $contactData
+		];
+	}
+
+	public function getHomepageData($userId = '') {
 		if ($userId === '') {
 			$this->checkAuth();
 			$userId = \Visitor::instance()->getUser()->id;
