@@ -205,6 +205,25 @@ class Data {
 		return $connection->affected_rows;
 	}
 
+	public function clear($query) {
+		$key = $this->key;
+		$id = $this->$key;
+		if ($id == null) {
+			throw new \Exception('Update error, id must be specified');
+		}
+
+		$sql = "update {$this->table} set {$query} where {$this->columns[$key]} = {$id}";
+		$connection = DataConnection::getConnection();
+		if ($connection == null) {
+			return null;
+		}
+		$connection->query($sql);
+		if (!empty($connection->error)) {
+			throw new \Exception('Clear error: ' . $connection->error);
+		}
+		return $connection->affected_rows;
+	}
+
 	public function load() {
 		$key = $this->key;
 		$id = $this->$key;
