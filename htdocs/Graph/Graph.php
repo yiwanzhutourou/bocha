@@ -563,7 +563,7 @@ class MBook extends Data {
 			$this->author = json_stringify($doubanBook->author);
 			$this->cover = $doubanBook->image;
 			$this->publisher = $doubanBook->publisher;
-			$this->trueIsbn = $doubanBook->isbn13;
+			$this->trueIsbn = empty($doubanBook->isbn13) ? 'fake_isbn' : $doubanBook->isbn13;
 			$this->insert();
 		}
 	}
