@@ -282,6 +282,28 @@ class Data {
 		}
 	}
 
+	public function count() {
+		$where = 'where 1=1 ';
+		foreach ($this->columns as $objCol => $dbCol) {
+			if ($this->$objCol) {
+				$where .= " and $dbCol = '{$this->$objCol}'";
+			}
+		}
+		$key = $this->key;
+		$sql = "select count(*) from {$this->table} $where ORDER BY {$this->columns[$key]} DESC";
+		$connection = DataConnection::getConnection();
+		if ($connection == null) {
+			return null;
+		}
+		$rs = $connection->query($sql);
+		if ($rs === false) {
+			throw new \Exception('Query count error: ' . $connection->error);
+		} else {
+			$row = $rs->fetch_row();
+			return intval($row[0]);
+		}
+	}
+
 	/**
 	 * 先凑合着用吧
 	 */
@@ -415,6 +437,12 @@ class MUser extends Data {
 		$userBook = new MUserBook();
 		$userBook->userId = $this->id;
 		return $userBook->find();
+	}
+
+	public function getBookListCount() {
+		$userBook = new MUserBook();
+		$userBook->userId = $this->id;
+		return $userBook->count();
 	}
 
 	public function isBookAdded($isbn) {

@@ -71,6 +71,37 @@ class User extends ApiBase {
 		throw new Exception(Exception::WEIXIN_AUTH_FAILED, '无法获取openid');
 	}
 
+	public function getSettingsData() {
+		$this->checkAuth();
+
+		$user = \Visitor::instance()->getUser();
+		$contactJson = $user->contact;
+		$contact = json_decode($contactJson);
+		$mobile = $user->mobile;
+
+		$addressList = array_map(function($address) {
+				return json_decode($address->city);
+		}, $user->getAddressList());
+
+		return [
+			'contact'     => $contact,
+			'mobileTail'  => substr($mobile, strlen($mobile) - 4, strlen($mobile)),
+			'address'     => $addressList,
+		];
+	}
+
+	public function getMinePageData() {
+		$this->checkAuth();
+
+		$user = \Visitor::instance()->getUser();
+		$bookCount = $user->getBookListCount();
+
+		return [
+			'bookCount' => $bookCount === false ? 0 : $bookCount,
+			'cardCount' => 0,
+		];
+	}
+
 	public function getUserContact() {
 		$this->checkAuth();
 		$contactJson = \Visitor::instance()->getUser()->contact;
