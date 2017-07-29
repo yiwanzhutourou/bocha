@@ -59,6 +59,7 @@ class User extends ApiBase {
 				$user->nickname = $nickname;
 				$user->avatar = $avatar;
 				$user->contact = "";
+				$user->mobile = "";
 				$user->insert();
 			}
 			return [
