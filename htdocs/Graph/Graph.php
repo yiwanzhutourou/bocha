@@ -68,6 +68,56 @@ class Graph {
 		}
 	}
 
+	public static function addFollower($fromId, $toId) {
+		$query = new MFollow();
+		$query->fromId = $fromId;
+		$query->toId = $toId;
+
+		$follow = $query->findOne();
+		if ($follow === false) {
+			$query->createTime = strtotime('now');
+			$query->insert();
+		}
+	}
+
+	public static function removeFollower($fromId, $toId) {
+		$query = new MFollow();
+		$query->fromId = $fromId;
+		$query->toId = $toId;
+		$query->delete();
+	}
+
+	public static function getFollowings($fromId) {
+		$query = new MFollow();
+		$query->fromId = $fromId;
+		return $query->find();
+	}
+
+	public static function getFollowers($toId) {
+		$query = new MFollow();
+		$query->toId = $toId;
+		return $query->find();
+	}
+
+	public static function isFollowing($fromId, $toId) {
+		$query = new MFollow();
+		$query->fromId = $fromId;
+		$query->toId = $toId;
+		return $query->findOne() !== false;
+	}
+
+	public static function getFollowerCount($toId) {
+		$query = new MFollow();
+		$query->toId = $toId;
+		return $query->count();
+	}
+
+	public static function getFollowingCount($fromId) {
+		$query = new MFollow();
+		$query->fromId = $fromId;
+		return $query->count();
+	}
+
 	public static function findCode($userId, $mobile, $code) {
 		$query = new MSmsCode();
 		$query->userId = $userId;
@@ -648,6 +698,29 @@ class MSmsCode extends Data {
 				'userId'     => 'user_id',
 				'mobile'     => 'mobile',
 				'code'       => 'code',
+				'createTime' => 'create_time'
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
+ * Class MFollow
+ * @property mixed id
+ * @property mixed fromId
+ * @property mixed toId
+ * @property mixed createTime
+ */
+class MFollow extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_follow',
+			'columns' => [
+				'id'         => '_id',
+				'fromId'     => 'from_id',
+				'toId'     => 'to_id',
 				'createTime' => 'create_time'
 			]
 		];

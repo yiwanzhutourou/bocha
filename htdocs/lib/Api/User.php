@@ -9,6 +9,7 @@ namespace Api;
 use Graph\Graph;
 use Graph\MBook;
 use Graph\MBorrowHistory;
+use Graph\MFollow;
 use Graph\MSmsCode;
 use Graph\MUser;
 use Graph\MUserAddress;
@@ -99,6 +100,8 @@ class User extends ApiBase {
 		return [
 			'bookCount' => $bookCount === false ? 0 : $bookCount,
 			'cardCount' => 0,
+			'followerCount'  => Graph::getFollowerCount($user->id),
+			'followingCount' => Graph::getFollowingCount($user->id),
 		];
 	}
 
@@ -219,12 +222,16 @@ class User extends ApiBase {
 	}
 
 	public function getHomepageData($userId = '') {
+		$isFollowing = false;
 		if ($userId === '') {
 			$this->checkAuth();
 			$userId = \Visitor::instance()->getUser()->id;
 			$isMe = true;
 		} else {
 			$isMe = \Visitor::instance()->isMe($userId);
+			if (\Visitor::instance()->getUser() !== null) {
+				$isFollowing = Graph::isFollowing(\Visitor::instance()->getUser()->id, $userId);
+			}
 		}
 
 		$user = new MUser();
@@ -272,12 +279,15 @@ class User extends ApiBase {
 		}
 
 		return [
-			'info'     => $info === false ? '' : $info->info,
-			'nickname' => $one->nickname,
-			'avatar'   => $one->avatar,
-			'address'  => $addressList,
-			'books'    => $books,
-			'isMe'     => $isMe
+			'info'           => $info === false ? '' : $info->info,
+			'nickname'       => $one->nickname,
+			'avatar'         => $one->avatar,
+			'address'        => $addressList,
+			'books'          => $books,
+			'isMe'           => $isMe,
+			'followed'       => $isFollowing,
+			'followerCount'  => Graph::getFollowerCount($userId),
+			'followingCount' => Graph::getFollowingCount($userId),
 		];
 	}
 
@@ -674,6 +684,101 @@ class User extends ApiBase {
 		}
 
 		return 'success';
+	}
+
+	public function follow($toUser) {
+		$this->checkAuth();
+
+		// check user exist
+		/** @var MUser $user */
+		$user = Graph::findUserById($toUser);
+		if ($user === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
+		}
+
+		$selfId = \Visitor::instance()->getUser()->id;
+		if ($toUser === $selfId) {
+			throw new Exception(Exception::BAD_REQUEST , '不可以关注自己哦~');
+		}
+
+		Graph::addFollower($selfId, $toUser);
+
+		return 'ok';
+	}
+
+	public function unfollow($toUser) {
+		$this->checkAuth();
+
+		$selfId = \Visitor::instance()->getUser()->id;
+		Graph::removeFollower($selfId, $toUser);
+
+		return 'ok';
+	}
+
+	public function getMyFollowings() {
+		$this->checkAuth();
+
+		$selfId = \Visitor::instance()->getUser()->id;
+		$followings = Graph::getFollowings($selfId);
+		$result = [];
+		if ($followings !== false) {
+			$result = array_map(function($following) {
+				/** @var MFollow $following */
+				$toId = $following->toId;
+				/** @var MUser $user */
+				$user = Graph::findUserById($toId);
+				$addresses = array_map(function($address) {
+					return [
+						'name'      => $address->name,
+						'detail'    => $address->detail,
+						'city'      => json_decode($address->city),
+					];
+				}, $user->getAddressList());
+				$bookCount = $user->getBookListCount();
+				return [
+					'id'        => $user->id,
+					'nickname'  => $user->nickname,
+					'avatar'    => $user->avatar,
+					'address'   => $addresses,
+					'bookCount' => $bookCount
+				];
+			}, $followings);
+		}
+
+		return $result;
+	}
+
+	public function getMyFollowers() {
+		$this->checkAuth();
+
+		$selfId = \Visitor::instance()->getUser()->id;
+		$followers = Graph::getFollowers($selfId);
+		$result = [];
+		if ($followers !== false) {
+			$result = array_map(function($follower) {
+				/** @var MFollow $follower */
+				$fromId = $follower->fromId;
+				/** @var MUser $user */
+				$user = Graph::findUserById($fromId);
+				$addresses = array_map(function($address) {
+					return [
+						'name'      => $address->name,
+						'detail'    => $address->detail,
+						'city'      => json_decode($address->city),
+					];
+				}, $user->getAddressList());
+				$bookCount = $user->getBookListCount();
+				return [
+					'id'        => $user->id,
+					'nickname'  => $user->nickname,
+					'avatar'    => $user->avatar,
+					'address'   => $addresses,
+					'bookCount' => $bookCount
+				];
+			}, $followers);
+		}
+
+		return $result;
 	}
 
 	public function requestVerifyCode($mobile) {

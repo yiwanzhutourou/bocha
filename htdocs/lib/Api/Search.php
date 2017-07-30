@@ -116,11 +116,13 @@ class Search extends ApiBase {
 			usort($addresses, function($a, $b) {
 				return ($a['distance'] > $b['distance']) ? 1 : -1;
 			});
+			$bookCount = $user->getBookListCount();
 			return [
 				'id'          => $user->id,
 				'nickname'    => $user->nickname,
 				'avatar'      => $user->avatar,
-				'address' => array_values($addresses)[0]
+				'address' => array_values($addresses)[0],
+				'bookCount' => $bookCount
 			];
 		}, $users);
 		return $result;
