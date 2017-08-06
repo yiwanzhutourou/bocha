@@ -6,6 +6,15 @@
 
 namespace Graph;
 
+define ('MSG_TYPE_TEXT', 0);
+define ('MSG_TYPE_BORROW', 1);
+define ('MSG_TYPE_CONTACT', 2);
+
+define ('MSG_STATUS_NORMAL', 0);
+define ('MSG_STATUS_DEL_BY_SENDER', 1);
+define ('MSG_STATUS_DEL_BY_RECEIVER', 2);
+define ('MSG_STATUS_DEL_BY_BOTH', 2);
+
 class Graph {
 	public static function findUser($token) {
 		$user = new MUser();
@@ -134,6 +143,79 @@ class Graph {
 
 		return $query->findOne();
 	}
+
+	public static function sendRequest($from, $to, $request) {
+		$timestamp = strtotime('now');
+
+		// update both user in chat table
+		self::updateChat($from, $to, $from, '', MSG_TYPE_BORROW, $timestamp, $request);
+		self::updateChat($to, $from, $from, '', MSG_TYPE_BORROW, $timestamp, $request);
+
+		// insert a new message
+		self::insertNewMessage($from, $to, '', MSG_TYPE_BORROW, $timestamp, $request);
+	}
+
+	public static function sendContact($from, $to, $contact) {
+		$timestamp = strtotime('now');
+
+		// update both user in chat table
+		self::updateChat($from, $to, $from, '', MSG_TYPE_CONTACT, $timestamp, $contact);
+		self::updateChat($to, $from, $from, '', MSG_TYPE_CONTACT, $timestamp, $contact);
+
+		// insert a new message
+		self::insertNewMessage($from, $to, '', MSG_TYPE_CONTACT, $timestamp, $contact);
+	}
+
+	public static function sendMessage($from, $to, $message) {
+
+		$timestamp = strtotime('now');
+
+		// update both user in chat table
+		self::updateChat($from, $to, $from, $message, MSG_TYPE_TEXT, $timestamp, '');
+		self::updateChat($to, $from, $from, $message, MSG_TYPE_TEXT, $timestamp, '');
+
+		// insert a new message
+		self::insertNewMessage($from, $to, $message, MSG_TYPE_TEXT, $timestamp, '');
+	}
+
+	public static function insertNewMessage($from, $to, $message, $msgType, $timestamp, $extra) {
+		$query = new MChatMessage();
+		$query->user1 = $from;
+		$query->user2 = $to;
+		$query->msgContent = $message;
+		$query->msgType = $msgType;
+		$query->status = MSG_STATUS_NORMAL;
+		$query->timestamp = $timestamp;
+		$query->extra = $extra;
+		$query->insert();
+	}
+
+	public static function updateChat(
+		$user1, $user2, $sender, $message, $msgType, $timestamp, $extra) {
+		$query = new MChat();
+		$query->user1 = $user1;
+		$query->user2 = $user2;
+
+		/** @var MChat $chat */
+		$chat = $query->findOne();
+		if ($chat === false) {
+			$query->msgSender = $sender;
+			$query->msgContent = $message;
+			$query->msgType = $msgType;
+			$query->status = MSG_STATUS_NORMAL;
+			$query->timestamp = $timestamp;
+			$query->extra = $extra;
+			$query->insert();
+		} else {
+			$chat->msgSender = $sender;
+			$chat->msgContent = $message;
+			$chat->msgType = $msgType;
+			$chat->status = MSG_STATUS_NORMAL;
+			$chat->timestamp = $timestamp;
+			$chat->extra = $extra;
+			$chat->update();
+		}
+	}
 }
 
 class DataConnection {
@@ -234,7 +316,7 @@ class Data {
 			if ($this->columns[$this->key] === $dbCol) {
 				continue;
 			}
-			if ($this->$objCol) {
+			if (isset($this->$objCol)) {
 				$updates .= "$dbCol = '{$this->$objCol}',";
 			}
 		}
@@ -359,7 +441,10 @@ class Data {
 	 */
 	public function query($query, $orderBy = '') {
 		$result = array();
-		$where = 'where 1=1 and ' . $query;
+		$where = 'where 1=1';
+		if (!empty($query)) {
+			$where .= ' and ' . $query;
+		}
 		foreach ($this->columns as $objCol => $dbCol) {
 			if ($this->$objCol) {
 				$where .= " and $dbCol = '{$this->$objCol}'";
@@ -722,6 +807,70 @@ class MFollow extends Data {
 				'fromId'     => 'from_id',
 				'toId'     => 'to_id',
 				'createTime' => 'create_time'
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
+ * Class MChat
+ * @property mixed id
+ * @property mixed user1
+ * @property mixed user2
+ * @property mixed msgContent
+ * @property mixed msgSender
+ * @property mixed msgType
+ * @property mixed status
+ * @property mixed timestamp
+ * @property mixed extra
+ */
+class MChat extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_chat',
+			'columns' => [
+				'id'         => '_id',
+				'user1'      => 'user_1',
+				'user2'      => 'user_2',
+				'msgContent' => 'msg_content',
+				'msgSender'  => 'msg_sender',
+				'msgType'    => 'msg_type',
+				'status'     => 'status',
+				'timestamp'  => 'timestamp',
+				'extra'      => 'extra'
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
+ * Class MChatMessage
+ * @property mixed id
+ * @property mixed user1
+ * @property mixed user2
+ * @property mixed msgContent
+ * @property mixed msgType
+ * @property mixed status
+ * @property mixed timestamp
+ * @property mixed extra
+ */
+class MChatMessage extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_chat_message',
+			'columns' => [
+				'id'         => '_id',
+				'user1'      => 'user_1',
+				'user2'      => 'user_2',
+				'msgContent' => 'msg_content',
+				'msgType'    => 'msg_type',
+				'status'     => 'status',
+				'timestamp'  => 'timestamp',
+				'extra'      => 'extra'
 			]
 		];
 		parent::init($options);

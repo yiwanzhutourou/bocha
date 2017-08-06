@@ -606,6 +606,9 @@ class User extends ApiBase {
 			throw new Exception(Exception::REQUEST_TOO_MUCH, '您今天已经在他的书房里借阅了一本书~');
 		}
 
+		// 这个当时为什么只存了个日期字符串,算了将错就错吧
+		$date = date('Y-m-d');
+
 		$history->bookIsbn = $book->isbn;
 		$history->bookTitle = $book->title;
 		$history->bookCover = $book->cover;
@@ -613,6 +616,15 @@ class User extends ApiBase {
 		$history->formId = $formId;
 		$history->requestStatus = 0;
 		$history->insert();
+
+		// 插一条消息到聊天记录
+		$requestExtra = [
+			'isbn'  => $book->isbn,
+			'title' => $book->title,
+			'cover' => $book->cover,
+			'date'  => $date,
+		];
+		Graph::sendRequest($selfId, $toUser, json_stringify($requestExtra));
 
 		// 发通知短信
 		/** @var MUser $sendSmsUser */
