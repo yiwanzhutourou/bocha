@@ -123,7 +123,7 @@ class Chat extends ApiBase {
 		}
 	}
 
-	public function start($otherId) {
+	public function start($otherId, $count = 15, $page = 0) {
 		$this->checkAuth();
 
 		// check user exist
@@ -136,17 +136,20 @@ class Chat extends ApiBase {
 		$self = \Visitor::instance()->getUser();
 		$selfId = $self->id;
 
+		$offset = $page * $count;
+
 		$query = new MChatMessage();
 		$queryString = "((user_1 = {$selfId} and user_2 = {$otherId})"
 			. " or (user_1 = {$otherId} and user_2 = {$selfId}))";
-		$list = $query->query($queryString, 'ORDER BY timestamp ASC'); // LIMIT 0,5
+		$list = $query->query($queryString,
+							  "ORDER BY timestamp DESC LIMIT {$offset},{$count}");
 
+		$messages = [];
 		if ($list !== false) {
-			$messages = array_map(function($message) {
-				return $this->createMessage($message);
-			}, $list);
-		} else {
-			$messages = [];
+			$values = array_values($list);
+			for ($i = count($list) - 1; $i >= 0; $i--) {
+				$messages[] = $this->createMessage($values[$i]);
+			}
 		}
 		return [
 			'self'  => [
