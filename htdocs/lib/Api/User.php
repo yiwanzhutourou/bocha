@@ -604,7 +604,7 @@ class User extends ApiBase {
 			$one = current($list);
 		}
 		if (isset($one) && $one->date === date('Y-m-d')) {
-			throw new Exception(Exception::REQUEST_TOO_MUCH, '您今天已经在他的书房里借阅了一本书~');
+			throw new Exception(Exception::REQUEST_TOO_MUCH, '你今天已经在他的书房里借阅了一本书~');
 		}
 
 		// 这个当时为什么只存了个日期字符串,算了将错就错吧
@@ -652,7 +652,7 @@ class User extends ApiBase {
 
 		$user = \Visitor::instance()->getUser();
 		if ($one->to !== $user->id) {
-			throw new Exception(Exception::BAD_REQUEST , '不属于您的请求不能处理~');
+			throw new Exception(Exception::BAD_REQUEST , '不属于你的请求不能处理~');
 		}
 
 		if ($one->requestStatus !== '0') {
@@ -799,7 +799,7 @@ class User extends ApiBase {
 
 		$user = \Visitor::instance()->getUser();
 		if (!empty($user->mobile) && $user->mobile === $mobile) {
-			throw new Exception(Exception::RESOURCE_ALREADY_ADDED, '您已经绑定过这个手机号了~');
+			throw new Exception(Exception::RESOURCE_ALREADY_ADDED, '你已经绑定过这个手机号了~');
 		}
 
 		/** @var MSmsCode $verifyCode */
@@ -845,7 +845,7 @@ class User extends ApiBase {
 			[
 				'keyword1' => ['value' => $bookTitle],
 				'keyword2' => ['value' => $date],
-				'keyword3' => ['value' => "书友 {$hoster} 拒绝了您借阅《{$bookTitle}》的请求,点击查看详情"]
+				'keyword3' => ['value' => "书友 {$hoster} 拒绝了你借阅《{$bookTitle}》的请求,点击查看详情"]
 			],
 			'keyword1.DATA'
 		);
@@ -861,7 +861,7 @@ class User extends ApiBase {
 			[
 				'keyword1' => ['value' => $bookTitle],
 				'keyword2' => ['value' => $date],
-				'keyword3' => ['value' => "书友 {$hoster} 同意了您借阅《{$bookTitle}》的请求,点击查看详情"]
+				'keyword3' => ['value' => "书友 {$hoster} 同意了你借阅《{$bookTitle}》的请求,点击查看详情"]
 			],
 			'keyword1.DATA'
 		);
@@ -876,7 +876,7 @@ class User extends ApiBase {
 			$formId,
 			[
 				'keyword1' => ['value' => $bookTitle],
-				'keyword2' => ['value' => "书友 {$fromUserNick} 想借阅您书房里的《{$bookTitle}》,点击查看详情"],
+				'keyword2' => ['value' => "书友 {$fromUserNick} 想借阅你书房里的《{$bookTitle}》,点击查看详情"],
 				'keyword3' => ['value' => $fromUserNick],
 				'keyword4' => ['value' => date('Y-m-d H:m')]
 			],
