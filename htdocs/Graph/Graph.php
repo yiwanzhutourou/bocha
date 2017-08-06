@@ -16,6 +16,21 @@ define ('MSG_STATUS_DEL_BY_RECEIVER', 2);
 define ('MSG_STATUS_DEL_BY_BOTH', 2);
 
 class Graph {
+
+	/**
+	 * 先这样简单防一下注入,后面赶紧改用框架写吧
+	 * @param $escapestr
+	 * @return string
+	 * @throws \Exception
+	 */
+	public static function escape($escapestr) {
+		$mysqli = DataConnection::getConnection();
+		if ($mysqli == null) {
+			return '';
+		}
+		return $mysqli->escape_string($escapestr);
+	}
+
 	public static function findUser($token) {
 		$user = new MUser();
 		$user->token = $token;
@@ -168,6 +183,7 @@ class Graph {
 
 	public static function sendMessage($from, $to, $message) {
 
+		$message = self::escape($message);
 		$timestamp = strtotime('now');
 
 		// update both user in chat table

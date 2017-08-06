@@ -327,6 +327,7 @@ class User extends ApiBase {
 
 	public function setInfo($info) {
 		$this->checkAuth();
+		$info = Graph::escape($info);
 		$user = \Visitor::instance()->getUser();
 		$user->updateInfo($info);
 		return $info;

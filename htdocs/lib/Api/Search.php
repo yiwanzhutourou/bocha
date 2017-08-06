@@ -14,6 +14,7 @@ use Graph\MUserBook;
 class Search extends ApiBase {
 	public function books($keyword, $longitude = 0, $latitude = 0,
 						  $count = 100, $page = 0) {
+		$keyword = Graph::escape($keyword);
 		if (empty($keyword)) {
 			return [];
 		}
@@ -88,6 +89,7 @@ class Search extends ApiBase {
 
 	public function users($keyword, $longitude = 0, $latitude = 0,
 							   $count = 100, $page = 0) {
+		$keyword = Graph::escape($keyword);
 		if (empty($keyword)) {
 			return [];
 		}
