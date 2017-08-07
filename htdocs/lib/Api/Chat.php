@@ -7,6 +7,8 @@
 namespace Api;
 
 use Graph\Graph;
+use Graph\MBook;
+use Graph\MBorrowHistory;
 use Graph\MChat;
 use Graph\MChatMessage;
 use Graph\MUser;
@@ -14,6 +16,76 @@ use Graph\MUser;
 // TODO 删除/更新未读状态/chat页分页
 
 class Chat extends ApiBase {
+
+	public function borrowBook($toUser, $isbn, $message) {
+		$this->checkAuth();
+
+		// check user exist
+		/** @var MUser $user */
+		$user = Graph::findUserById($toUser);
+		if ($user === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
+		}
+
+		$selfId = \Visitor::instance()->getUser()->id;
+		if ($toUser === $selfId) {
+			throw new Exception(Exception::BAD_REQUEST , '不可以借自己的书哦~');
+		}
+
+		// check book exist
+		/** @var MBook $book */
+		$book = Graph::findBook($isbn);
+		if ($book === false) {
+			throw new Exception(Exception::WEIXIN_AUTH_FAILED, '无法获取图书信息');
+		}
+
+		$history = new MBorrowHistory();
+		$history->from = $selfId;
+		$history->to = $toUser;
+		/** @var MBorrowHistory $one */
+		$list = $history->find();
+		if (!empty($list)) {
+			$one = current($list);
+		}
+//		if (isset($one) && $one->date === date('Y-m-d')) {
+//			throw new Exception(Exception::REQUEST_TOO_MUCH, '你今天已经在他的书房里借阅了一本书~');
+//		}
+
+		// 这个当时为什么只存了个日期字符串,算了将错就错吧
+		$date = date('Y-m-d');
+
+		$history->bookIsbn = $book->isbn;
+		$history->bookTitle = $book->title;
+		$history->bookCover = $book->cover;
+		$history->date = date('Y-m-d');
+		$history->formId = '';
+		$history->requestStatus = 0;
+		$history->insert();
+
+		// 插一条消息到聊天记录
+		$requestExtra = [
+			'isbn'  => $book->isbn,
+			'title' => $book->title,
+			'cover' => $book->cover,
+			'date'  => $date,
+		];
+		Graph::sendRequest($selfId, $toUser, json_stringify($requestExtra));
+
+		// 最新的接口借书会带一条消息,直接当做发送了一条普通消息
+		if (!empty($message)) {
+			Graph::sendMessage($selfId, $toUser, $message);
+		}
+
+		// 发通知短信
+		/** @var MUser $sendSmsUser */
+//		$sendSmsUser = Graph::findUserById($toUser);
+//		if ($sendSmsUser !== false && !empty($sendSmsUser->mobile)) {
+//			sendBorrowBookSms(
+//				$sendSmsUser->mobile, \Visitor::instance()->getUser()->nickname, $book->title);
+//		}
+
+		return 'ok';
+	}
 
 	public function sendMessage($otherId, $message) {
 		$this->checkAuth();
