@@ -66,8 +66,11 @@ class Map extends ApiBase {
 		foreach ($userIdArray as $userId) {
 			$uid = trim($userId);
 			if ($uid && count($uid) > 0) {
+				/** @var MUser $user */
 				$user = Graph::findUserById($userId);
+				/** @var MUserAddress $address */
 				$address = Graph::findUserAddress($userId);
+				$bookCount = $user->getBookListCount();
 				$result[] = [
 					'id' 				=> $userId,
 					'nickname' 	=> $user->nickname,
@@ -77,7 +80,8 @@ class Map extends ApiBase {
 						'longitude' => $address->longitude,
 						'name'      => $address->name,
 						'detail'    => $address->detail
-					]
+					],
+					'bookCount' => $bookCount
 				];
 			}
 		}

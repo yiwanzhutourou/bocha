@@ -9,6 +9,7 @@ namespace Api;
 use Graph\Graph;
 use Graph\MBook;
 use Graph\MBorrowHistory;
+use Graph\MFollow;
 use Graph\MSmsCode;
 use Graph\MUser;
 use Graph\MUserAddress;
@@ -99,6 +100,8 @@ class User extends ApiBase {
 		return [
 			'bookCount' => $bookCount === false ? 0 : $bookCount,
 			'cardCount' => 0,
+			'followerCount'  => Graph::getFollowerCount($user->id),
+			'followingCount' => Graph::getFollowingCount($user->id),
 		];
 	}
 
@@ -219,12 +222,16 @@ class User extends ApiBase {
 	}
 
 	public function getHomepageData($userId = '') {
+		$isFollowing = false;
 		if ($userId === '') {
 			$this->checkAuth();
 			$userId = \Visitor::instance()->getUser()->id;
 			$isMe = true;
 		} else {
 			$isMe = \Visitor::instance()->isMe($userId);
+			if (\Visitor::instance()->getUser() !== null) {
+				$isFollowing = Graph::isFollowing(\Visitor::instance()->getUser()->id, $userId);
+			}
 		}
 
 		$user = new MUser();
@@ -272,12 +279,15 @@ class User extends ApiBase {
 		}
 
 		return [
-			'info'     => $info === false ? '' : $info->info,
-			'nickname' => $one->nickname,
-			'avatar'   => $one->avatar,
-			'address'  => $addressList,
-			'books'    => $books,
-			'isMe'     => $isMe
+			'info'           => $info === false ? '' : $info->info,
+			'nickname'       => $one->nickname,
+			'avatar'         => $one->avatar,
+			'address'        => $addressList,
+			'books'          => $books,
+			'isMe'           => $isMe,
+			'followed'       => $isFollowing,
+			'followerCount'  => Graph::getFollowerCount($userId),
+			'followingCount' => Graph::getFollowingCount($userId),
 		];
 	}
 
@@ -317,6 +327,7 @@ class User extends ApiBase {
 
 	public function setInfo($info) {
 		$this->checkAuth();
+		$info = Graph::escape($info);
 		$user = \Visitor::instance()->getUser();
 		$user->updateInfo($info);
 		return $info;
@@ -593,8 +604,11 @@ class User extends ApiBase {
 			$one = current($list);
 		}
 		if (isset($one) && $one->date === date('Y-m-d')) {
-			throw new Exception(Exception::REQUEST_TOO_MUCH, '您今天已经在他的书房里借阅了一本书~');
+			throw new Exception(Exception::REQUEST_TOO_MUCH, '你今天已经在他的书房里借阅了一本书~');
 		}
+
+		// 这个当时为什么只存了个日期字符串,算了将错就错吧
+		$date = date('Y-m-d');
 
 		$history->bookIsbn = $book->isbn;
 		$history->bookTitle = $book->title;
@@ -603,6 +617,15 @@ class User extends ApiBase {
 		$history->formId = $formId;
 		$history->requestStatus = 0;
 		$history->insert();
+
+		// 插一条消息到聊天记录
+		$requestExtra = [
+			'isbn'  => $book->isbn,
+			'title' => $book->title,
+			'cover' => $book->cover,
+			'date'  => $date,
+		];
+		Graph::sendRequest($selfId, $toUser, json_stringify($requestExtra));
 
 		// 发通知短信
 		/** @var MUser $sendSmsUser */
@@ -629,7 +652,7 @@ class User extends ApiBase {
 
 		$user = \Visitor::instance()->getUser();
 		if ($one->to !== $user->id) {
-			throw new Exception(Exception::BAD_REQUEST , '不属于您的请求不能处理~');
+			throw new Exception(Exception::BAD_REQUEST , '不属于你的请求不能处理~');
 		}
 
 		if ($one->requestStatus !== '0') {
@@ -676,12 +699,107 @@ class User extends ApiBase {
 		return 'success';
 	}
 
+	public function follow($toUser) {
+		$this->checkAuth();
+
+		// check user exist
+		/** @var MUser $user */
+		$user = Graph::findUserById($toUser);
+		if ($user === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
+		}
+
+		$selfId = \Visitor::instance()->getUser()->id;
+		if ($toUser === $selfId) {
+			throw new Exception(Exception::BAD_REQUEST , '不可以关注自己哦~');
+		}
+
+		Graph::addFollower($selfId, $toUser);
+
+		return 'ok';
+	}
+
+	public function unfollow($toUser) {
+		$this->checkAuth();
+
+		$selfId = \Visitor::instance()->getUser()->id;
+		Graph::removeFollower($selfId, $toUser);
+
+		return 'ok';
+	}
+
+	public function getMyFollowings() {
+		$this->checkAuth();
+
+		$selfId = \Visitor::instance()->getUser()->id;
+		$followings = Graph::getFollowings($selfId);
+		$result = [];
+		if ($followings !== false) {
+			$result = array_map(function($following) {
+				/** @var MFollow $following */
+				$toId = $following->toId;
+				/** @var MUser $user */
+				$user = Graph::findUserById($toId);
+				$addresses = array_map(function($address) {
+					return [
+						'name'      => $address->name,
+						'detail'    => $address->detail,
+						'city'      => json_decode($address->city),
+					];
+				}, $user->getAddressList());
+				$bookCount = $user->getBookListCount();
+				return [
+					'id'        => $user->id,
+					'nickname'  => $user->nickname,
+					'avatar'    => $user->avatar,
+					'address'   => $addresses,
+					'bookCount' => $bookCount
+				];
+			}, $followings);
+		}
+
+		return $result;
+	}
+
+	public function getMyFollowers() {
+		$this->checkAuth();
+
+		$selfId = \Visitor::instance()->getUser()->id;
+		$followers = Graph::getFollowers($selfId);
+		$result = [];
+		if ($followers !== false) {
+			$result = array_map(function($follower) {
+				/** @var MFollow $follower */
+				$fromId = $follower->fromId;
+				/** @var MUser $user */
+				$user = Graph::findUserById($fromId);
+				$addresses = array_map(function($address) {
+					return [
+						'name'      => $address->name,
+						'detail'    => $address->detail,
+						'city'      => json_decode($address->city),
+					];
+				}, $user->getAddressList());
+				$bookCount = $user->getBookListCount();
+				return [
+					'id'        => $user->id,
+					'nickname'  => $user->nickname,
+					'avatar'    => $user->avatar,
+					'address'   => $addresses,
+					'bookCount' => $bookCount
+				];
+			}, $followers);
+		}
+
+		return $result;
+	}
+
 	public function requestVerifyCode($mobile) {
 		$this->checkAuth(true/* 验证短信当然不能要求人家已经绑了手机啦,这简直就是跟着客户端一起二 */);
 
 		$user = \Visitor::instance()->getUser();
 		if (!empty($user->mobile) && $user->mobile === $mobile) {
-			throw new Exception(Exception::RESOURCE_ALREADY_ADDED, '您已经绑定过这个手机号了~');
+			throw new Exception(Exception::RESOURCE_ALREADY_ADDED, '你已经绑定过这个手机号了~');
 		}
 
 		/** @var MSmsCode $verifyCode */
@@ -727,7 +845,7 @@ class User extends ApiBase {
 			[
 				'keyword1' => ['value' => $bookTitle],
 				'keyword2' => ['value' => $date],
-				'keyword3' => ['value' => "书友 {$hoster} 拒绝了您借阅《{$bookTitle}》的请求,点击查看详情"]
+				'keyword3' => ['value' => "书友 {$hoster} 拒绝了你借阅《{$bookTitle}》的请求,点击查看详情"]
 			],
 			'keyword1.DATA'
 		);
@@ -743,7 +861,7 @@ class User extends ApiBase {
 			[
 				'keyword1' => ['value' => $bookTitle],
 				'keyword2' => ['value' => $date],
-				'keyword3' => ['value' => "书友 {$hoster} 同意了您借阅《{$bookTitle}》的请求,点击查看详情"]
+				'keyword3' => ['value' => "书友 {$hoster} 同意了你借阅《{$bookTitle}》的请求,点击查看详情"]
 			],
 			'keyword1.DATA'
 		);
@@ -758,7 +876,7 @@ class User extends ApiBase {
 			$formId,
 			[
 				'keyword1' => ['value' => $bookTitle],
-				'keyword2' => ['value' => "书友 {$fromUserNick} 想借阅您书房里的《{$bookTitle}》,点击查看详情"],
+				'keyword2' => ['value' => "书友 {$fromUserNick} 想借阅你书房里的《{$bookTitle}》,点击查看详情"],
 				'keyword3' => ['value' => $fromUserNick],
 				'keyword4' => ['value' => date('Y-m-d H:m')]
 			],
