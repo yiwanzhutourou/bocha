@@ -153,6 +153,9 @@ class Chat extends ApiBase {
 					$isSend = ($selfId === $chat->msgSender);
 					/** @var MUser $otherUser */
 					$otherUser = Graph::findUserById($otherId);
+					if ($otherUser === false) {
+						return false;
+					}
 
 					switch ($chat->msgType) {
 						case MSG_TYPE_TEXT:
@@ -178,18 +181,21 @@ class Chat extends ApiBase {
 							$message = '';
 					}
 					return [
-						'user'      => [
+						'user'        => [
 							'id'       => $otherUser->id,
 							'nickname' => $otherUser->nickname,
 							'avatar'   => $otherUser->avatar,
 						],
-						'message'   => $message,
-						'timeStamp' => $chat->timestamp
+						'message'     => $message,
+						'timeStamp'   => $chat->timestamp,
+						'unreadCount' => $chat->unreadCount,
 					];
 				},
 				$chatUsers
 			);
-			return $chatList;
+			return array_filter($chatList, function($item) {
+				return $item !== false;
+			});
 		} else {
 			return [];
 		}
@@ -223,6 +229,10 @@ class Chat extends ApiBase {
 				$messages[] = $this->createMessage($values[$i]);
 			}
 		}
+
+		// clear unread count
+		Graph::clearUnread($selfId, $otherId);
+
 		return [
 			'self'  => [
 				'id'       => $self->id,
