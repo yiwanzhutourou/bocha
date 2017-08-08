@@ -211,6 +211,7 @@ class Graph {
 		$query = new MChat();
 		$query->user1 = $user1;
 		$query->user2 = $user2;
+		$isReceiver = ($user1 !== $sender);
 
 		/** @var MChat $chat */
 		$chat = $query->findOne();
@@ -221,6 +222,11 @@ class Graph {
 			$query->status = MSG_STATUS_NORMAL;
 			$query->timestamp = $timestamp;
 			$query->extra = $extra;
+			if ($isReceiver) {
+				$query->unreadCount = 1;
+			} else {
+				$query->unreadCount = 0;
+			}
 			$query->insert();
 		} else {
 			$chat->msgSender = $sender;
@@ -229,8 +235,18 @@ class Graph {
 			$chat->status = MSG_STATUS_NORMAL;
 			$chat->timestamp = $timestamp;
 			$chat->extra = $extra;
-			$chat->update();
+			if ($isReceiver) {
+				$chat->update('unread_count = unread_count + 1');
+			} else {
+				$chat->update();
+			}
 		}
+	}
+
+	public static function clearUnread($user1, $user2) {
+		$query = new MChat();
+		$query->unreadCount = 0;
+		$query->modify("user_1 = {$user1} and user_2 = {$user2}", '');
 	}
 }
 
@@ -320,7 +336,7 @@ class Data {
 		return $connection->affected_rows;
 	}
 
-	public function update() {
+	public function update($update = '') {
 		$key = $this->key;
 		$id = $this->$key;
 		if ($id == null) {
@@ -336,9 +352,14 @@ class Data {
 				$updates .= "$dbCol = '{$this->$objCol}',";
 			}
 		}
-		// 去掉最后的逗号
-		if (strlen($updates) > 0) {
-			$updates = substr($updates, 0, strlen($updates) - 1);
+
+		if ($update === '') {
+			// 去掉最后的逗号
+			if (strlen($updates) > 0) {
+				$updates = substr($updates, 0, strlen($updates) - 1);
+			}
+		} else {
+			$updates .= $update;
 		}
 
 		$sql = "update {$this->table} set {$updates} where {$this->columns[$key]} = {$id}";
@@ -349,6 +370,38 @@ class Data {
 		$connection->query($sql);
 		if (!empty($connection->error)) {
 			throw new \Exception('Update error: ' . $connection->error);
+		}
+		return $connection->affected_rows;
+	}
+
+	public function modify($where, $update) {
+		$updates = '';
+		foreach ($this->columns as $objCol => $dbCol) {
+			if ($this->columns[$this->key] === $dbCol) {
+				continue;
+			}
+			if (isset($this->$objCol)) {
+				$updates .= "$dbCol = '{$this->$objCol}',";
+			}
+		}
+
+		if ($update === '') {
+			// 去掉最后的逗号
+			if (strlen($updates) > 0) {
+				$updates = substr($updates, 0, strlen($updates) - 1);
+			}
+		} else {
+			$updates .= $update;
+		}
+
+		$sql = "update {$this->table} set {$updates} where {$where}";
+		$connection = DataConnection::getConnection();
+		if ($connection == null) {
+			return null;
+		}
+		$connection->query($sql);
+		if (!empty($connection->error)) {
+			throw new \Exception('Modify error: ' . $connection->error);
 		}
 		return $connection->affected_rows;
 	}
@@ -840,6 +893,7 @@ class MFollow extends Data {
  * @property mixed status
  * @property mixed timestamp
  * @property mixed extra
+ * @property mixed unreadCount
  */
 class MChat extends Data {
 	public function __construct() {
@@ -847,15 +901,16 @@ class MChat extends Data {
 			'key'     => 'id',
 			'table'   => 'bocha_chat',
 			'columns' => [
-				'id'         => '_id',
-				'user1'      => 'user_1',
-				'user2'      => 'user_2',
-				'msgContent' => 'msg_content',
-				'msgSender'  => 'msg_sender',
-				'msgType'    => 'msg_type',
-				'status'     => 'status',
-				'timestamp'  => 'timestamp',
-				'extra'      => 'extra'
+				'id'          => '_id',
+				'user1'       => 'user_1',
+				'user2'       => 'user_2',
+				'msgContent'  => 'msg_content',
+				'msgSender'   => 'msg_sender',
+				'msgType'     => 'msg_type',
+				'status'      => 'status',
+				'timestamp'   => 'timestamp',
+				'extra'       => 'extra',
+				'unreadCount' => 'unread_count'
 			]
 		];
 		parent::init($options);
