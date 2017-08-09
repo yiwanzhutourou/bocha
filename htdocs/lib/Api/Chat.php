@@ -17,6 +17,27 @@ use Graph\MUser;
 
 class Chat extends ApiBase {
 
+	/*
+	 * 删除与另一个用户之间的所有消息,目前暂不支持某一条单独删除
+	 * start()和getChatList()两个接口会下发获取到数据的时间戳,
+	 * 删除时把这个时间戳作为参数传到服务端,服务端会删除这个时间戳之前的消息,
+	 * 这样能保证删除的都是用户已经拉取过的数据,而不会误删新发的而用户还没有看到的消息
+	 */
+	public function delete($otherId, $timestamp) {
+		$this->checkAuth();
+
+		// check user exist
+		/** @var MUser $otherUser */
+		$otherUser = Graph::findUserById($otherId);
+		if ($otherUser === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
+		}
+
+		$selfId = \Visitor::instance()->getUser()->id;
+		Graph::deleteChatMessage($selfId, $otherId, $timestamp);
+		return 'ok';
+	}
+
 	public function borrowBook($toUser, $isbn, $message) {
 		$this->checkAuth();
 
@@ -140,9 +161,10 @@ class Chat extends ApiBase {
 		$self = \Visitor::instance()->getUser();
 		$query = new MChat();
 		$query->user1 = $self->id;
+		$query->status = MSG_STATUS_NORMAL; // 删除的消息不下发
 
 		// 这里暂时不做分页了
-		$chatUsers = $query->query('', 'ORDER BY timestamp DESC');
+		$chatUsers = $query->query("status = '0'", 'ORDER BY timestamp DESC');
 
 		if ($chatUsers !== false) {
 			$chatList = array_map(
@@ -193,11 +215,17 @@ class Chat extends ApiBase {
 				},
 				$chatUsers
 			);
-			return array_filter($chatList, function($item) {
-				return $item !== false;
-			});
+			return [
+				'messages'  => array_filter($chatList, function($item) {
+					return $item !== false;
+				}),
+					'timestamp' => strtotime('now')
+			];
 		} else {
-			return [];
+			return [
+				'timestamp' => 0,
+				'messages'  => []
+			];
 		}
 	}
 
@@ -217,8 +245,8 @@ class Chat extends ApiBase {
 		$offset = $page * $count;
 
 		$query = new MChatMessage();
-		$queryString = "((user_1 = {$selfId} and user_2 = {$otherId})"
-			. " or (user_1 = {$otherId} and user_2 = {$selfId}))";
+		$queryString = "((user_1 = {$selfId} and user_2 = {$otherId} and status_1 = 0)"
+			. " or (user_1 = {$otherId} and user_2 = {$selfId} and status_2 = 0))";
 		$list = $query->query($queryString,
 							  "ORDER BY timestamp DESC LIMIT {$offset},{$count}");
 
@@ -245,6 +273,7 @@ class Chat extends ApiBase {
 				'avatar'   => $otherUser->avatar,
 			],
 			'messages'  => $messages,
+			'timestamp' => strtotime('now')
 		];
 	}
 

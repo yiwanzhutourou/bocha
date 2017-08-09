@@ -11,9 +11,7 @@ define ('MSG_TYPE_BORROW', 1);
 define ('MSG_TYPE_CONTACT', 2);
 
 define ('MSG_STATUS_NORMAL', 0);
-define ('MSG_STATUS_DEL_BY_SENDER', 1);
-define ('MSG_STATUS_DEL_BY_RECEIVER', 2);
-define ('MSG_STATUS_DEL_BY_BOTH', 2);
+define ('MSG_STATUS_DELETED', 1);
 
 class Graph {
 
@@ -200,7 +198,8 @@ class Graph {
 		$query->user2 = $to;
 		$query->msgContent = $message;
 		$query->msgType = $msgType;
-		$query->status = MSG_STATUS_NORMAL;
+		$query->status1 = MSG_STATUS_NORMAL;
+		$query->status2 = MSG_STATUS_NORMAL;
 		$query->timestamp = $timestamp;
 		$query->extra = $extra;
 		$query->insert();
@@ -247,6 +246,53 @@ class Graph {
 		$query = new MChat();
 		$query->unreadCount = 0;
 		$query->modify("user_1 = {$user1} and user_2 = {$user2}", '');
+	}
+
+	public static function deleteChatMessage($user1, $user2, $timestamp) {
+		// user1要删除和user2的之间的消息
+
+		// user1发送给user2的消息,status1字段标记为删除(发送方)
+		// 这里不用判断时间戳直接都删除,因为不存在误删未读消息的情况
+		$query1 = new MChatMessage();
+		$query1->status1 = MSG_STATUS_DELETED;
+		$query1->modify(
+			"user_1 = {$user1} and user_2 = {$user2}", '');
+
+		// user2发送给user1的消息,status2字段标记为删除(接收方)
+		$query2 = new MChatMessage();
+		$query2->status2 = MSG_STATUS_DELETED;
+		$query2->modify(
+			"user_1 = {$user2} and user_2 = {$user1} and timestamp < {$timestamp}", '');
+
+		// 同时更新chat表
+		// (不知道是不是想复杂了)因为在删除的时间点之后user2可能又发了消息过来,
+		// 所以在更新完message表之后还应该去查询一下是否有user2发过来的没被删除的新消息
+		$query3 = new MChatMessage();
+		$query3->user1 = $user2;
+		$query3->user2 = $user1;
+		$query3->status2 = MSG_STATUS_NORMAL;
+		$newMessages = $query3->query('', 'ORDER BY timestamp DESC');
+		if ($newMessages === false || count($newMessages) === 0) {
+			// 没有新消息,直接把这条chat的状态标记为删除
+			$query4 = new MChat();
+			$query4->status = MSG_STATUS_DELETED;
+			$query4->unreadCount = 0;
+			$query4->modify(
+				"user_1 = {$user1} and user_2 = {$user2}", '');
+		} else {
+			/** @var MChatMessage $newestMsg */
+			$newestMsg = $newMessages[0];
+			$query4 = new MChat();
+			$query4->msgContent = $newestMsg->msgContent;
+			$query4->msgSender = $newestMsg->user1;
+			$query4->msgType = $newestMsg->msgType;
+			$query4->status = MSG_STATUS_NORMAL;
+			$query4->timestamp = $newestMsg->timestamp;
+			$query4->unreadCount = count($newMessages);
+			$query4->extra = $newestMsg->extra;
+			$query4->modify(
+				"user_1 = {$user1} and user_2 = {$user2}", '');
+		}
 	}
 }
 
@@ -515,7 +561,7 @@ class Data {
 			$where .= ' and ' . $query;
 		}
 		foreach ($this->columns as $objCol => $dbCol) {
-			if ($this->$objCol) {
+			if (isset($this->$objCol)) {
 				$where .= " and $dbCol = '{$this->$objCol}'";
 			}
 		}
@@ -924,7 +970,8 @@ class MChat extends Data {
  * @property mixed user2
  * @property mixed msgContent
  * @property mixed msgType
- * @property mixed status
+ * @property mixed status1
+ * @property mixed status2
  * @property mixed timestamp
  * @property mixed extra
  */
@@ -939,7 +986,8 @@ class MChatMessage extends Data {
 				'user2'      => 'user_2',
 				'msgContent' => 'msg_content',
 				'msgType'    => 'msg_type',
-				'status'     => 'status',
+				'status1'     => 'status_1',
+				'status2'     => 'status_2',
 				'timestamp'  => 'timestamp',
 				'extra'      => 'extra'
 			]
