@@ -2,3 +2,4 @@
 .idea/
 mysql/data/
 htdocs/constant.php
+htdocs/Qiniu/
