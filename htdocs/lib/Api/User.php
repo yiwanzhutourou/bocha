@@ -9,6 +9,7 @@ namespace Api;
 use Graph\Graph;
 use Graph\MBook;
 use Graph\MBorrowHistory;
+use Graph\MCard;
 use Graph\MFollow;
 use Graph\MSmsCode;
 use Graph\MUser;
@@ -96,10 +97,11 @@ class User extends ApiBase {
 
 		$user = \Visitor::instance()->getUser();
 		$bookCount = $user->getBookListCount();
+		$cardCount = $user->getCardListCount();
 
 		return [
-			'bookCount' => $bookCount === false ? 0 : $bookCount,
-			'cardCount' => 0,
+			'bookCount' => $bookCount,
+			'cardCount' => $cardCount,
 			'followerCount'  => Graph::getFollowerCount($user->id),
 			'followingCount' => Graph::getFollowingCount($user->id),
 		];
@@ -258,6 +260,28 @@ class User extends ApiBase {
 			];
 		}, $one->getAddressList());
 
+		// 最新的三条读书卡片
+		$card = new MCard();
+		$card->userId = $userId;
+		$cardList = $card->query("status = '0'", 'ORDER BY create_time DESC LIMIT 0,3');
+		$cards = array_map(function($card) {
+			/** @var MBook $book */
+			$book = Graph::findBook($card->bookIsbn);
+
+			/** @var MCard $card */
+			return [
+				'id'         => $card->id,
+				'title'      => $card->title,
+				'content'    => mb_substr($card->content, 0, 48, 'utf-8') . '...',
+				'picUrl'     => getListThumbnailUrl($card->picUrl),
+				'bookTitle'  => $book->title,
+				'createTime' => $card->createTime,
+			];
+		}, $cardList);
+
+		// 读书卡片总数
+		$cardCount = $user->getCardListCount();
+
 		// 图书列表
 		$userBooks = $one->getBookList();
 		$books = [];
@@ -283,6 +307,8 @@ class User extends ApiBase {
 			'nickname'       => $one->nickname,
 			'avatar'         => $one->avatar,
 			'address'        => $addressList,
+			'cards'          => $cards,
+			'cardCount'      => $cardCount,
 			'books'          => $books,
 			'isMe'           => $isMe,
 			'followed'       => $isFollowing,

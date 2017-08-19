@@ -13,6 +13,9 @@ define ('MSG_TYPE_CONTACT', 2);
 define ('MSG_STATUS_NORMAL', 0);
 define ('MSG_STATUS_DELETED', 1);
 
+define ('CARD_STATUS_NORMAL', 0);
+define ('CARD_STATUS_DELETED', 1);
+
 class Graph {
 
 	/**
@@ -54,6 +57,9 @@ class Graph {
 	}
 
 	public static function findBook($isbn) {
+		if (empty($isbn)) {
+			return false;
+		}
 		$book = new MBook();
 		$book->isbn = $isbn;
 		return $book->findOne();
@@ -529,15 +535,18 @@ class Data {
 		}
 	}
 
-	public function count() {
+	public function count($query = '') {
 		$where = 'where 1=1 ';
+		if (!empty($query)) {
+			$where .= ' and ' . $query;
+		}
 		foreach ($this->columns as $objCol => $dbCol) {
 			if ($this->$objCol) {
 				$where .= " and $dbCol = '{$this->$objCol}'";
 			}
 		}
 		$key = $this->key;
-		$sql = "select count(*) from {$this->table} $where ORDER BY {$this->columns[$key]} DESC";
+		$sql = "select count(*) from {$this->table} $where";
 		$connection = DataConnection::getConnection();
 		if ($connection == null) {
 			return null;
@@ -692,7 +701,15 @@ class MUser extends Data {
 	public function getBookListCount() {
 		$userBook = new MUserBook();
 		$userBook->userId = $this->id;
-		return $userBook->count();
+		$count = $userBook->count();
+		return $count === false ? 0 : $count;
+	}
+
+	public function getCardListCount() {
+		$card = new MCard();
+		$card->userId = $this->id;
+		$count = $card->count("status = '0'");
+		return $count === false ? 0 : $count;
 	}
 
 	public function isBookAdded($isbn) {
@@ -990,6 +1007,37 @@ class MChatMessage extends Data {
 				'status2'     => 'status_2',
 				'timestamp'  => 'timestamp',
 				'extra'      => 'extra'
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
+ * Class MCard
+ * @property mixed id
+ * @property mixed userId
+ * @property mixed title
+ * @property mixed content
+ * @property mixed picUrl
+ * @property mixed bookIsbn
+ * @property mixed createTime
+ * @property mixed status
+ */
+class MCard extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_book_card',
+			'columns' => [
+				'id'         => '_id',
+				'userId'     => 'user_id',
+				'title'      => 'title',
+				'content'    => 'content',
+				'picUrl'     => 'pic_url',
+				'bookIsbn'   => 'book_isbn',
+				'createTime' => 'create_time',
+				'status'     => 'status',
 			]
 		];
 		parent::init($options);

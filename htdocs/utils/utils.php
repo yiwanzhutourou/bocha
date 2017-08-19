@@ -139,3 +139,17 @@ function randCode($length = 5, $type = 0) {
 	}
 	return $code;
 }
+
+function getListThumbnailUrl($url) {
+	if (empty($url)) {
+		return $url;
+	}
+	return $url . '?imageView2/1/w/200/h/200/format/jpg/q/75|imageslim';
+}
+
+function getOriginalImgUrl($url) {
+	if (empty($url)) {
+		return $url;
+	}
+	return $url . '?imageView2/0/format/jpg/q/75|imageslim';
+}

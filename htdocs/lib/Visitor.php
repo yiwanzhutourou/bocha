@@ -5,6 +5,7 @@
  */
 
 use \Graph\MUser;
+use \Api\Exception;
 
 class Visitor {
 
@@ -36,6 +37,13 @@ class Visitor {
 		return $this->user;
 	}
 
+	/*
+	 * 不判空,调用前需要检查是否登录,见checkAuth
+	 */
+	public function getUserId() {
+		return $this->user->id;
+	}
+
 	public function isMe($userId) {
 		return $this->user != null && $this->user->id === $userId;
 	}
@@ -46,5 +54,14 @@ class Visitor {
 
 	public function hasMobile() {
 		return $this->user != null && !empty($this->user->mobile);
+	}
+
+	public function checkAuth($skipMobile = false) {
+		if (!$this->isLogin())
+			throw new Exception(Exception::AUTH_FAILED, '未登录');
+		if (!$skipMobile) {
+			if (!$this->hasMobile())
+				throw new Exception(Exception::AUTH_FAILED_NO_MOBILE, '未绑定手机号');
+		}
 	}
 }

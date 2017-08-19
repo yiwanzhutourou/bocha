@@ -13,8 +13,6 @@ use Graph\MChat;
 use Graph\MChatMessage;
 use Graph\MUser;
 
-// TODO 删除/更新未读状态/chat页分页
-
 class Chat extends ApiBase {
 
 	/*
