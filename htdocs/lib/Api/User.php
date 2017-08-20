@@ -272,7 +272,7 @@ class User extends ApiBase {
 			return [
 				'id'         => $card->id,
 				'title'      => $card->title,
-				'content'    => mb_substr($card->content, 0, 48, 'utf-8') . '...',
+				'content'    => mb_substr($card->content, 0, 48, 'utf-8'),
 				'picUrl'     => getListThumbnailUrl($card->picUrl),
 				'bookTitle'  => $book->title,
 				'createTime' => $card->createTime,
@@ -303,6 +303,7 @@ class User extends ApiBase {
 		}
 
 		return [
+			'userId'         => $userId,
 			'info'           => $info === false ? '' : $info->info,
 			'nickname'       => $one->nickname,
 			'avatar'         => $one->avatar,

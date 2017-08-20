@@ -227,6 +227,37 @@ class Chat extends ApiBase {
 		}
 	}
 
+	public function getNew($otherId, $timestamp) {
+		$this->checkAuth();
+
+		// check user exist
+		/** @var MUser $otherUser */
+		$otherUser = Graph::findUserById($otherId);
+		if ($otherUser === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
+		}
+
+		$self = \Visitor::instance()->getUser();
+		$selfId = $self->id;
+
+		$query = new MChatMessage();
+		$queryString = "(((user_1 = {$selfId} and user_2 = {$otherId} and status_1 = 0)"
+					   . " or (user_1 = {$otherId} and user_2 = {$selfId} and status_2 = 0))"
+					   . "and (timestamp > {$timestamp}))";
+		$list = $query->query($queryString,
+							  "ORDER BY timestamp DESC");
+
+		$messages = [];
+		if ($list !== false) {
+			$values = array_values($list);
+			for ($i = count($list) - 1; $i >= 0; $i--) {
+				$messages[] = $this->createMessage($values[$i]);
+			}
+		}
+
+		return $messages;
+	}
+
 	public function start($otherId, $count = 15, $page = 0) {
 		$this->checkAuth();
 
@@ -256,6 +287,11 @@ class Chat extends ApiBase {
 			}
 		}
 
+		if (intval($page) === 0) {
+			// 所有聊天开始默认推一条hint
+			$messages[] = $this->createFakeMessage();
+		}
+
 		// clear unread count
 		Graph::clearUnread($selfId, $otherId);
 
@@ -272,6 +308,16 @@ class Chat extends ApiBase {
 			],
 			'messages'  => $messages,
 			'timestamp' => strtotime('now')
+		];
+	}
+
+	private function createFakeMessage() {
+		return [
+			'type'      => 'fake_hint',
+			'from'      => '',
+			'to'        => '',
+			'content'   => '提示：有读书房的留言并不是及时聊天，你可以尝试点击刷新来获取更新的消息',
+			'timeStamp' => '',
 		];
 	}
 

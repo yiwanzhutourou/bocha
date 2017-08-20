@@ -76,7 +76,7 @@ class Card extends ApiBase {
 			return [
 				'id'         => $card->id,
 				'title'      => $card->title,
-				'content'    => mb_substr($card->content, 0, 48, 'utf-8') . '...',
+				'content'    => mb_substr($card->content, 0, 48, 'utf-8'),
 				'picUrl'     => getListThumbnailUrl($card->picUrl),
 				'bookTitle'  => $book->title,
 				'createTime' => $card->createTime,
@@ -125,7 +125,25 @@ class Card extends ApiBase {
 	}
 
 	public function getUserCards($userId) {
-		// TODO
+		$query = new MCard();
+		$query->userId = $userId;
+
+		$cardList = $query->query("status = '0'", 'ORDER BY create_time DESC');
+
+		return array_map(function($card) {
+			/** @var MBook $book */
+			$book = Graph::findBook($card->bookIsbn);
+
+			/** @var MCard $card */
+			return [
+				'id'         => $card->id,
+				'title'      => $card->title,
+				'content'    => mb_substr($card->content, 0, 48, 'utf-8'),
+				'picUrl'     => getListThumbnailUrl($card->picUrl),
+				'bookTitle'  => $book->title,
+				'createTime' => $card->createTime,
+			];
+		}, $cardList);
 	}
 
 	public function getCardsLine() {
