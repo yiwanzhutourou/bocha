@@ -146,8 +146,87 @@ class Card extends ApiBase {
 		}, $cardList);
 	}
 
-	public function getCardsLine() {
-		// TODO 卡片流的实现,第一期做一个最简单的出来
+	/*
+	 * 第一版出去最简单的卡片流:读书卡片和最新图书混排的流
+	 * $cursor 时间戳
+	 * $isUp 下拉或者上拉刷新
+	 */
+	public function getDiscoverPageData($cursor, $isTop) {
+		$cursor = intval($cursor);
+		if ($cursor < 0) {
+			$cursor = 0;
+		}
+
+		if ($isTop) {
+			// 表示下拉刷新,数据要放在顶部,直接取最新的数据发下去
+			$condition = "status = '0' and create_time > {$cursor}";
+		} else {
+			$condition = "status = '0' and create_time < {$cursor}";
+		}
+
+		// 先取50条数据出来
+		$query = new MCard();
+		$cardList = $query->query($condition,
+								  'ORDER BY create_time DESC LIMIT 0,50');
+		
+		// 去重逻辑:1.同一个用户不能超过五条
+		$filteredList = [];
+		$userMap = [];
+		foreach ($cardList as $card) {
+			/** @var MCard $card */
+			$userId = $card->userId;
+			if (!isset($userMap[$userId])) {
+				$userMap[$userId] = 1;
+			} else if ($userMap[$userId] < 5) {
+				$userMap[$userId] = $userMap[$userId] + 1;
+			} else {
+				continue;
+			}
+			// 一次最多返回15条,取50条去重应该很大概率返回的是15条数据
+			if (count($filteredList) >= 15) {
+				break;
+			}
+			$filteredList[] = $card;
+		}
+
+		$resultList =  array_map(function($card) {
+			/** @var MUser $user */
+			$user = Graph::findUserById($card->userId);
+			if ($user === false) {
+				return false;
+			}
+
+			/** @var MCard $card */
+			return [
+				'type' => 'card',
+				'data' => [
+					'id'         => $card->id,
+					'user'       => [
+						'id'       => $user->id,
+						'nickname' => $user->nickname,
+						'avatar'   => $user->avatar,
+					],
+					'title'      => $card->title,
+					'content'    => mb_substr($card->content, 0, 48, 'utf-8'),
+					'picUrl'     => getListThumbnailUrl($card->picUrl),
+					'createTime' => $card->createTime,
+				],
+			];
+		}, $filteredList);
+
+		$resultList = array_filter($resultList, function($item) {
+			return $item !== false;
+		});
+
+		$topCursor = self::getCursor($resultList, true);
+		$bottomCursor = self::getCursor($resultList, false);
+
+		return [
+			'list'         => $resultList,
+			'topCursor'    => $topCursor,
+			'bottomCursor' => $bottomCursor,
+			'showPost'     => true,
+		];
 	}
 
 	// --------- utils
@@ -166,5 +245,14 @@ class Card extends ApiBase {
 			$result = substr($result, 0, strlen($result) - 1);
 		}
 		return $result;
+	}
+
+	private static function getCursor($list, $isTop) {
+		if (count($list) > 0) {
+			$index = $isTop ? 0 : (count($list) - 1);
+			$item = array_values($list)[$index];
+			return $item['data']['createTime'];
+		}
+		return -1;
 	}
 }
