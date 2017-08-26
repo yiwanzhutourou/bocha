@@ -100,6 +100,8 @@ class User extends ApiBase {
 		$cardCount = $user->getCardListCount();
 
 		return [
+			'nickname'       => $user->nickname,
+			'avatar'         => $user->avatar,
 			'bookCount' => $bookCount,
 			'cardCount' => $cardCount,
 			'followerCount'  => Graph::getFollowerCount($user->id),

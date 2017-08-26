@@ -36,15 +36,29 @@ class Card extends ApiBase {
 		return $insertId;
 	}
 
-	public function modify($cardId, $content, $title = '', $picUrl = '', $bookIsbn = '') {
+	public function modify($cardId, $content, $title = '', $picUrl = '') {
 		\Visitor::instance()->checkAuth();
-
-		$userId = \Visitor::instance()->getUserId();
 
 		$content = Graph::escape($content);
 		$title = Graph::escape($title);
 
-		// TODO
+		$query = new MCard();
+		$query->id = $cardId;
+
+		/** @var MCard $card */
+		$card = $query->findOne();
+		if ($card === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '卡片不存在');
+		}
+
+		$card->title = $title;
+		$card->content = $content;
+		if (count($picUrl) > 0) {
+			$card->picUrl = $picUrl;
+		}
+		$card->update();
+
+		return 'ok';
 	}
 
 	public function delete($cardId) {
@@ -146,6 +160,40 @@ class Card extends ApiBase {
 		}, $cardList);
 	}
 
+	public function getBookCards($isbn, $page = 0, $count = 5) {
+
+		$offset = $page * $count;
+		$query = new MCard();
+		$cardList = $query->query("status = '0' and book_isbn = '{$isbn}'",
+				"ORDER BY create_time DESC LIMIT {$offset},{$count}");
+
+		$resultList = array_map(function($card) {
+			/** @var MUser $user */
+			$user = Graph::findUserById($card->userId);
+			if ($user === false) {
+				return false;
+			}
+
+			/** @var MCard $card */
+			return [
+				'id'         => $card->id,
+				'user'       => [
+					'id'       => $user->id,
+					'nickname' => $user->nickname,
+					'avatar'   => $user->avatar,
+				],
+				'title'      => $card->title,
+				'content'    => mb_substr($card->content, 0, 48, 'utf-8'),
+				'picUrl'     => getListThumbnailUrl($card->picUrl),
+				'createTime' => $card->createTime,
+			];
+		}, $cardList);
+
+		return array_filter($resultList, function($item) {
+			return $item !== false;
+		});
+	}
+
 	/*
 	 * 第一版出去最简单的卡片流:读书卡片和最新图书混排的流
 	 * $cursor 时间戳
@@ -159,7 +207,7 @@ class Card extends ApiBase {
 
 		if ($isTop) {
 			// 表示下拉刷新,数据要放在顶部,直接取最新的数据发下去
-			$condition = "status = '0' and create_time > {$cursor}";
+			$condition = "status = '0'";
 		} else {
 			$condition = "status = '0' and create_time < {$cursor}";
 		}
