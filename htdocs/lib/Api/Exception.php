@@ -20,6 +20,7 @@ class Exception extends \Exception {
 
 	const RESOURCE_NOT_FOUND = 4001;
 	const RESOURCE_ALREADY_ADDED = 4002;
+	const RESOURCE_IS_PULP = 4003;
 
 	const REQUEST_TOO_MUCH = 5001;
 	const VERIFY_CODE_EXPIRED = 5002;

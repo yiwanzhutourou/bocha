@@ -1059,6 +1059,39 @@ class MCard extends Data {
 }
 
 /**
+ * Class MCardPulp
+ * @property mixed id
+ * @property mixed userId
+ * @property mixed title
+ * @property mixed content
+ * @property mixed picUrl
+ * @property mixed createTime
+ * @property mixed pulpRate
+ * @property mixed pulpLabel
+ * @property mixed pulpReview
+ */
+class MCardPulp extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_book_card_pulp',
+			'columns' => [
+				'id'         => '_id',
+				'userId'     => 'user_id',
+				'title'      => 'title',
+				'content'    => 'content',
+				'picUrl'     => 'pic_url',
+				'createTime' => 'create_time',
+				'pulpRate'   => 'pulp_rate',
+				'pulpLabel'  => 'pulp_label',
+				'pulpReview' => 'pulp_review'
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
  * Class MXu
  * @property mixed id
  * @property mixed name

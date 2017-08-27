@@ -9,6 +9,7 @@ namespace Api;
 use Graph\Graph;
 use Graph\MBook;
 use Graph\MCard;
+use Graph\MCardPulp;
 use Graph\MUser;
 use Graph\MUserBook;
 
@@ -16,10 +17,40 @@ class Card extends ApiBase {
 
 	// --------- 自己的读书卡片相关的接口,需要登录
 
-	public function insert($content, $title = '', $picUrl = '', $bookIsbn = '') {
+	public function insert($content, $title, $picUrl, $bookIsbn = '') {
 		\Visitor::instance()->checkAuth();
-
 		$userId = \Visitor::instance()->getUserId();
+
+		if (!empty($picUrl)) {
+			// 鉴黄
+			$url = $picUrl . '?pulp';
+			$response = file_get_contents($url);
+			$pulp = json_decode($response);
+			// 没解出数据认为是正常的
+			if (empty($pulp)) {
+				$picIsNormal = true;
+			} else if ($pulp->code === 0
+					   && $pulp->pulp->label === 2) {
+				$picIsNormal = true;
+			} else {
+				$picIsNormal = false;
+			}
+
+			$query = new MCardPulp();
+			$query->userId = $userId;
+			$query->title = $title;
+			$query->content = $content;
+			$query->picUrl = $picUrl;
+			$query->createTime = strtotime('now');
+			$query->pulpRate = empty($pulp) ? -1 : $pulp->pulp->rate;
+			$query->pulpLabel = empty($pulp) ? -1 : $pulp->pulp->label;
+			$query->pulpReview = empty($pulp) ? 'empty' : $pulp->pulp->review;
+			$query->insert();
+
+			if ($picIsNormal === false) {
+				throw new Exception(Exception::RESOURCE_IS_PULP, '你的图片可能涉及色情，不可以在有读书房发布');
+			}
+		}
 
 		$content = Graph::escape($content);
 		$title = Graph::escape($title);
@@ -37,8 +68,40 @@ class Card extends ApiBase {
 		return $insertId;
 	}
 
-	public function modify($cardId, $content, $title = '', $picUrl = '') {
+	public function modify($cardId, $content, $title, $picUrl, $picModified) {
 		\Visitor::instance()->checkAuth();
+
+		if (!empty($picUrl)) {
+			// 鉴黄
+			$url = $picUrl . '?pulp';
+			$response = file_get_contents($url);
+			$pulp = json_decode($response);
+			// 没解出数据认为是正常的
+			if (empty($pulp)) {
+				$picIsNormal = true;
+			} else if ($pulp->code === 0
+				&& $pulp->pulp->label === 2) {
+				$picIsNormal = true;
+			} else {
+				$picIsNormal = false;
+			}
+
+			$userId = \Visitor::instance()->getUserId();
+			$query = new MCardPulp();
+			$query->userId = $userId;
+			$query->title = $title;
+			$query->content = $content;
+			$query->picUrl = $picUrl;
+			$query->createTime = strtotime('now');
+			$query->pulpRate = empty($pulp) ? -1 : $pulp->pulp->rate;
+			$query->pulpLabel = empty($pulp) ? -1 : $pulp->pulp->label;
+			$query->pulpReview = empty($pulp) ? 'empty' : $pulp->pulp->review;
+			$query->insert();
+
+			if ($picIsNormal === false) {
+				throw new Exception(Exception::RESOURCE_IS_PULP, '你的图片可能涉及色情，不可以在有读书房发布');
+			}
+		}
 
 		$content = Graph::escape($content);
 		$title = Graph::escape($title);
@@ -54,7 +117,7 @@ class Card extends ApiBase {
 
 		$card->title = $title;
 		$card->content = $content;
-		if (count($picUrl) > 0) {
+		if ($picModified) {
 			$card->picUrl = $picUrl;
 		}
 		$card->update();
