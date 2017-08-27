@@ -808,6 +808,7 @@ class MUserAddress extends Data {
  * @property mixed id
  * @property mixed userId
  * @property mixed isbn
+ * @property mixed createTime
  */
 class MUserBook extends Data {
 	public function __construct() {
@@ -817,7 +818,8 @@ class MUserBook extends Data {
 			'columns' => [
 				'id'      => '_id',
 				'userId'  => 'user_id',
-				'isbn'    => 'isbn'
+				'isbn'    => 'isbn',
+				'createTime' => 'create_time',
 			]
 		];
 		parent::init($options);
@@ -832,6 +834,7 @@ class MUserBook extends Data {
  * @property mixed cover
  * @property mixed publisher
  * @property mixed trueIsbn
+ * @property mixed summary
  */
 class MBook extends Data {
 	public function __construct() {
@@ -845,6 +848,7 @@ class MBook extends Data {
 				'cover'     => 'cover',
 				'publisher' => 'publisher',
 				'trueIsbn'  => 'true_isbn',
+				'summary'   => 'summary',
 			]
 		];
 		parent::init($options);
@@ -852,6 +856,7 @@ class MBook extends Data {
 
 	public function updateBook($doubanBook) {
 		$this->isbn = $doubanBook->id;
+		/** @var MBook $one */
 		$one = $this->findOne();
 		if ($one === false) {
 			$this->title = $doubanBook->title;
@@ -859,7 +864,16 @@ class MBook extends Data {
 			$this->cover = $doubanBook->image;
 			$this->publisher = $doubanBook->publisher;
 			$this->trueIsbn = empty($doubanBook->isbn13) ? 'fake_isbn' : $doubanBook->isbn13;
+			$this->summary = $doubanBook->summary;
 			$this->insert();
+		} else {
+			$one->title = $doubanBook->title;
+			$one->author = json_stringify($doubanBook->author);
+			$one->cover = $doubanBook->image;
+			$one->publisher = $doubanBook->publisher;
+			$one->trueIsbn = empty($doubanBook->isbn13) ? 'fake_isbn' : $doubanBook->isbn13;
+			$one->summary = $doubanBook->summary;
+			$one->update();
 		}
 	}
 }

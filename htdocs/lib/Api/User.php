@@ -439,6 +439,7 @@ class User extends ApiBase {
 		if ($userBook->findOne() !== false) {
 			throw new Exception(Exception::RESOURCE_ALREADY_ADDED , '不可以添加重复的图书哦~');
 		} else {
+			$userBook->createTime = strtotime('now');
 			$userBook->insert();
 		}
 		return $isbn;

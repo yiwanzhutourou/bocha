@@ -10,6 +10,7 @@ use Graph\Graph;
 use Graph\MBook;
 use Graph\MCard;
 use Graph\MUser;
+use Graph\MUserBook;
 
 class Card extends ApiBase {
 
@@ -196,10 +197,11 @@ class Card extends ApiBase {
 
 	/*
 	 * 第一版出去最简单的卡片流:读书卡片和最新图书混排的流
-	 * $cursor 时间戳
+	 * $cursor 卡片列表的时间戳
+	 * $bookCursor 书列表的时间戳
 	 * $isUp 下拉或者上拉刷新
 	 */
-	public function getDiscoverPageData($cursor, $isTop) {
+	public function getDiscoverPageData($cursor, $bookCursor, $isTop) {
 		$cursor = intval($cursor);
 		if ($cursor < 0) {
 			$cursor = 0;
@@ -269,11 +271,97 @@ class Card extends ApiBase {
 		$topCursor = self::getCursor($resultList, true);
 		$bottomCursor = self::getCursor($resultList, false);
 
+		// 拉最新图书
+
+		$bookCursor = intval($bookCursor);
+		if ($bookCursor < 0) {
+			$bookCursor = 0;
+		}
+
+		// 老数据一律不要了
+		if ($isTop) {
+			$bookCondition = 'create_time > 0';
+		} else {
+			$bookCondition = "create_time > 0 and create_time < {$bookCursor}";
+		}
+
+		// 先取20条数据出来
+		$queryBook = new MUserBook();
+		$bookList = $queryBook->query($bookCondition,
+								  'ORDER BY create_time DESC LIMIT 0,20');
+
+		// 去重逻辑:1.同一个用户不能超过2条
+		$filteredBookList = [];
+		$bookUserMap = [];
+		foreach ($bookList as $book) {
+			/** @var MUserBook $book */
+			$userId = $book->userId;
+			if (!isset($bookUserMap[$userId])) {
+				$bookUserMap[$userId] = 1;
+			} else if ($bookUserMap[$userId] < 2) {
+				$bookUserMap[$userId] = $bookUserMap[$userId] + 1;
+			} else {
+				continue;
+			}
+			// 一次最多返回5条,取20条去重应该很大概率返回的是5条数据
+			if (count($filteredBookList) >= 5) {
+				break;
+			}
+			$filteredBookList[] = $book;
+		}
+
+		$bookResultList =  array_map(function($book) {
+			/** @var MUserBook $book */
+			/** @var MBook $bookData */
+			$bookData = Graph::findBook($book->isbn);
+			if ($bookData === false) {
+				return false;
+			}
+
+			/** @var MUser $user */
+			$user = Graph::findUserById($book->userId);
+			if ($user === false) {
+				return false;
+			}
+
+			return [
+				'type' => 'book',
+				'data' => [
+					'isbn'         => $bookData->isbn,
+					'user'       => [
+						'id'       => $user->id,
+						'nickname' => $user->nickname,
+						'avatar'   => $user->avatar,
+					],
+					'title'      => $bookData->title,
+					'author'     => self::parseAuthor($bookData->author),
+					'cover'      => $bookData->cover,
+					'publisher'  => $bookData->publisher,
+					'summary'    => $bookData->summary,
+					'createTime' => $book->createTime,
+				],
+			];
+		}, $filteredBookList);
+
+		$bookResultList = array_filter($bookResultList, function($item) {
+			return $item !== false;
+		});
+
+		$bookTopCursor = self::getCursor($bookResultList, true);
+		$bookBottomCursor = self::getCursor($bookResultList, false);
+
+		$finalList = array_merge($resultList, $bookResultList);
+		usort($finalList, function($a, $b) {
+			return $a['data']['createTime'] < $b['data']['createTime'] ? 1 : -1;
+		});
+
 		return [
-			'list'         => $resultList,
-			'topCursor'    => $topCursor,
-			'bottomCursor' => $bottomCursor,
-			'showPost'     => true,
+			'list'             => $finalList,
+			'topCursor'        => $topCursor,
+			'bottomCursor'     => $bottomCursor,
+			'bookTopCursor'    => $bookTopCursor,
+			'bookBottomCursor' => $bookBottomCursor,
+			'showPost'         => true,
 		];
 	}
 
