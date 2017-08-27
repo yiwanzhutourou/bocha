@@ -59,6 +59,12 @@ class Card extends ApiBase {
 		$query->userId = $userId;
 		$query->title = $title;
 		$query->content = $content;
+
+		// 先简单防一下
+		if ($query->findOne() !== false) {
+			throw new Exception(Exception::RESOURCE_IS_PULP, '你已经发送过类似读书卡片了~');
+		}
+
 		$query->picUrl = $picUrl;
 		$query->bookIsbn = $bookIsbn;
 		$query->createTime = strtotime('now');
