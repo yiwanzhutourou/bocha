@@ -48,7 +48,7 @@ class Card extends ApiBase {
 			$query->insert();
 
 			if ($picIsNormal === false) {
-				throw new Exception(Exception::RESOURCE_IS_PULP, '你的图片可能涉及色情，不可以在有读书房发布');
+				throw new Exception(Exception::RESOURCE_IS_PULP, '你的图片不符合规范，不可以在有读书房使用');
 			}
 		}
 

@@ -10,6 +10,7 @@ use Graph\Graph;
 use Graph\MBook;
 use Graph\MBorrowHistory;
 use Graph\MCard;
+use Graph\MCardPulp;
 use Graph\MFollow;
 use Graph\MSmsCode;
 use Graph\MUser;
@@ -362,6 +363,56 @@ class User extends ApiBase {
 		return $info;
 	}
 
+	public function updateHomeData($nickname, $intro, $avatar) {
+		$this->checkAuth();
+		$userId = \Visitor::instance()->getUserId();
+
+		if (!empty($avatar)) {
+			// 鉴黄
+			$url = $avatar . '?pulp';
+			$response = file_get_contents($url);
+			$pulp = json_decode($response);
+			// 没解出数据认为是正常的
+			if (empty($pulp)) {
+				$picIsNormal = true;
+			} else if ($pulp->code === 0
+					   && $pulp->pulp->label === 2) {
+				$picIsNormal = true;
+			} else {
+				$picIsNormal = false;
+			}
+
+			$query = new MCardPulp();
+			$query->userId = $userId;
+			$query->title = '设置头像';
+			$query->content = '';
+			$query->picUrl = $avatar;
+			$query->createTime = strtotime('now');
+			$query->pulpRate = empty($pulp) ? -1 : $pulp->pulp->rate;
+			$query->pulpLabel = empty($pulp) ? -1 : $pulp->pulp->label;
+			$query->pulpReview = empty($pulp) ? 'empty' : $pulp->pulp->review;
+			$query->insert();
+
+			if ($picIsNormal === false) {
+				throw new Exception(Exception::RESOURCE_IS_PULP, '你的图片不符合规范，不可以在有读书房使用');
+			}
+		}
+
+		$nickname = Graph::escape($nickname);
+		$intro = Graph::escape($intro);
+
+		$user = \Visitor::instance()->getUser();
+		$user->updateInfo($intro);
+
+		$user->nickname = $nickname;
+		if (!empty($avatar)) {
+			$user->avatar = $avatar;
+		}
+		$user->update();
+
+		return 'ok';
+	}
+
 	public function getUserBooks($userId) {
 		$user = new MUser();
 		$user->id = $userId;
@@ -471,6 +522,24 @@ class User extends ApiBase {
 			];
 		}
 		return $result;
+	}
+
+	public function getAddressCities() {
+		$this->checkAuth();
+
+		// 地址列表
+		// user address
+		$addressList = array_map(function($address) {
+			return [
+				'name'      => $address->name,
+				'detail'    => $address->detail,
+				'latitude'  => $address->latitude,
+				'longitude' => $address->longitude,
+				'city'      => json_decode($address->city)
+			];
+		}, \Visitor::instance()->getUser()->getAddressList());
+
+		return $addressList;
 	}
 
 	public function removeAddress($id) {
