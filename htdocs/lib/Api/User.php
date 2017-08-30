@@ -49,8 +49,8 @@ class User extends ApiBase {
 				// 假的,暂时token不超时
 				$user->createTime = strtotime('now');
 				$user->expireTime = strtotime('now + 30 days');
-				$user->nickname = $nickname;
-				$user->avatar = $avatar;
+				$user->nickname = empty($one->nickname) ? $nickname : $one->nickname;
+				$user->avatar = empty($one->avatar) ? $avatar : $one->avatar;
 				$user->update();
 			} else {
 				$token = 'bocha' . uniqid('', true);
@@ -406,7 +406,7 @@ class User extends ApiBase {
 
 		$user->nickname = $nickname;
 		if (!empty($avatar)) {
-			$user->avatar = $avatar;
+			$user->avatar = $avatar . '?imageView2/1/w/640/h/640/format/jpg/q/75|imageslim';
 		}
 		$user->update();
 
