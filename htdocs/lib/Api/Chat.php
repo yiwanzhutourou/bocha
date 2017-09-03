@@ -24,11 +24,13 @@ class Chat extends ApiBase {
 	public function delete($otherId, $timestamp) {
 		$this->checkAuth();
 
-		// check user exist
-		/** @var MUser $otherUser */
-		$otherUser = Graph::findUserById($otherId);
-		if ($otherUser === false) {
-			throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
+		if (intval($otherId) !== BOCHA_SYSTEM_USER_ID) {
+			// check user exist
+			/** @var MUser $otherUser */
+			$otherUser = Graph::findUserById($otherId);
+			if ($otherUser === false) {
+				throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
+			}
 		}
 
 		$selfId = \Visitor::instance()->getUser()->id;
@@ -97,11 +99,11 @@ class Chat extends ApiBase {
 
 		// 发通知短信
 		/** @var MUser $sendSmsUser */
-//		$sendSmsUser = Graph::findUserById($toUser);
-//		if ($sendSmsUser !== false && !empty($sendSmsUser->mobile)) {
-//			sendBorrowBookSms(
-//				$sendSmsUser->mobile, \Visitor::instance()->getUser()->nickname, $book->title);
-//		}
+		$sendSmsUser = Graph::findUserById($toUser);
+		if ($sendSmsUser !== false && !empty($sendSmsUser->mobile)) {
+			sendBorrowBookSms(
+				$sendSmsUser->mobile, \Visitor::instance()->getUser()->nickname, $book->title);
+		}
 
 		return 'ok';
 	}
@@ -172,13 +174,18 @@ class Chat extends ApiBase {
 					$otherId = $chat->user2;
 					$isSend = ($selfId === $chat->msgSender);
 					/** @var MUser $otherUser */
-					$otherUser = Graph::findUserById($otherId);
+					if (intval($otherId) === BOCHA_SYSTEM_USER_ID) {
+						$otherUser = $this->createSystemUser();
+					} else {
+						$otherUser = Graph::findUserById($otherId);
+					}
 					if ($otherUser === false) {
 						return false;
 					}
 
 					switch ($chat->msgType) {
 						case MSG_TYPE_TEXT:
+						case MSG_TYPE_SYSTEM:
 							$message = $chat->msgContent;
 							break;
 						case MSG_TYPE_BORROW:
@@ -213,11 +220,25 @@ class Chat extends ApiBase {
 				},
 				$chatUsers
 			);
+
+			$resultList = array_filter($chatList, function($item) {
+				return $item !== false;
+			});
+
+			for ($i = count($resultList) - 1; $i >= 0; $i--) {
+				$userId = array_values($resultList)[$i]['user']['id'];
+				if (intval($userId)
+						   === BOCHA_SYSTEM_USER_ID) {
+					$tmp = $resultList[$i];
+					unset($resultList[$i]);
+					array_unshift($resultList, $tmp);
+					break;
+				}
+			}
+
 			return [
-				'messages'  => array_filter($chatList, function($item) {
-					return $item !== false;
-				}),
-					'timestamp' => strtotime('now')
+				'messages'  => $resultList,
+				'timestamp' => strtotime('now')
 			];
 		} else {
 			return [
@@ -230,11 +251,13 @@ class Chat extends ApiBase {
 	public function getNew($otherId, $timestamp) {
 		$this->checkAuth();
 
-		// check user exist
-		/** @var MUser $otherUser */
-		$otherUser = Graph::findUserById($otherId);
-		if ($otherUser === false) {
-			throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
+		if (intval($otherId) !== BOCHA_SYSTEM_USER_ID) {
+			// check user exist
+			/** @var MUser $otherUser */
+			$otherUser = Graph::findUserById($otherId);
+			if ($otherUser === false) {
+				throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
+			}
 		}
 
 		$self = \Visitor::instance()->getUser();
@@ -263,7 +286,11 @@ class Chat extends ApiBase {
 
 		// check user exist
 		/** @var MUser $otherUser */
-		$otherUser = Graph::findUserById($otherId);
+		if (intval($otherId) === BOCHA_SYSTEM_USER_ID) {
+			$otherUser = $this->createSystemUser();
+		} else {
+			$otherUser = Graph::findUserById($otherId);
+		}
 		if ($otherUser === false) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
 		}
@@ -287,7 +314,7 @@ class Chat extends ApiBase {
 			}
 		}
 
-		if (intval($page) === 0) {
+		if (intval($page) === 0 && intval($otherId) !== BOCHA_SYSTEM_USER_ID) {
 			// 所有聊天开始默认推一条hint
 			$messages[] = $this->createFakeMessage();
 		}
@@ -358,6 +385,19 @@ class Chat extends ApiBase {
 						'contact' => $extra->contact,
 					],
 				];
+			case MSG_TYPE_SYSTEM:
+				$extra = json_decode($message->extra);
+				return [
+					'type'      => 'system',
+					'from'      => $message->user1,
+					'to'        => $message->user2,
+					'content'   => $message->msgContent,
+					'timeStamp' => $message->timestamp,
+					'extra'     => [
+						'router' => $extra->router,
+						'extra'  => $extra->extra,
+					],
+				];
 			default:
 				return [
 					'type' => 'unknown',
@@ -365,6 +405,14 @@ class Chat extends ApiBase {
 					'to'   => $message->user2,
 				];
 		}
+	}
+
+	private function createSystemUser() {
+		$systemUser = new MUser();
+		$systemUser->id = BOCHA_SYSTEM_USER_ID;
+		$systemUser->nickname = '有读书房';
+		$systemUser->avatar = 'http://othb16dht.bkt.clouddn.com/Fm3qYpsmNFGRDbWeTOQDRDfiJz9l?imageView2/1/w/640/h/640/format/jpg/q/75|imageslim';
+		return $systemUser;
 	}
 
 	private function checkAuth($skipMobile = false) {

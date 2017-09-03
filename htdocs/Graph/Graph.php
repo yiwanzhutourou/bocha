@@ -9,12 +9,15 @@ namespace Graph;
 define ('MSG_TYPE_TEXT', 0);
 define ('MSG_TYPE_BORROW', 1);
 define ('MSG_TYPE_CONTACT', 2);
+define ('MSG_TYPE_SYSTEM', 3);
 
 define ('MSG_STATUS_NORMAL', 0);
 define ('MSG_STATUS_DELETED', 1);
 
 define ('CARD_STATUS_NORMAL', 0);
 define ('CARD_STATUS_DELETED', 1);
+
+define ('BOCHA_SYSTEM_USER_ID', 0);
 
 class Graph {
 
@@ -198,6 +201,16 @@ class Graph {
 		self::insertNewMessage($from, $to, $message, MSG_TYPE_TEXT, $timestamp, '');
 	}
 
+	public static function sendSystemMessage($from, $to, $message, $extra) {
+		$message = self::escape($message);
+		$timestamp = strtotime('now');
+
+		self::updateChat($to, $from, $from, $message, MSG_TYPE_SYSTEM, $timestamp, $extra);
+
+		// insert a new message
+		self::insertNewMessage($from, $to, $message, MSG_TYPE_SYSTEM, $timestamp, $extra);
+	}
+
 	public static function insertNewMessage($from, $to, $message, $msgType, $timestamp, $extra) {
 		$query = new MChatMessage();
 		$query->user1 = $from;
@@ -320,6 +333,12 @@ class Graph {
 		$query->userId = $userId;
 		return $query->findOne() !== false;
 	}
+
+	public static function getCardById($cardId) {
+		$query = new MCard();
+		$query->id = $cardId;
+		return $query->findOne();
+	}
 }
 
 class DataConnection {
@@ -392,7 +411,7 @@ class Data {
 	public function delete() {
 		$where = 'where 1=1 ';
 		foreach ($this->columns as $objCol => $dbCol) {
-			if ($this->$objCol) {
+			if (isset($this->$objCol)) {
 				$where .= " and $dbCol = '{$this->$objCol}'";
 			}
 		}
@@ -528,7 +547,7 @@ class Data {
 		$result = array();
 		$where = 'where 1=1 ';
 		foreach ($this->columns as $objCol => $dbCol) {
-			if ($this->$objCol) {
+			if (isset($this->$objCol)) {
 				$where .= " and $dbCol = '{$this->$objCol}'";
 			}
 		}
@@ -561,7 +580,7 @@ class Data {
 			$where .= ' and ' . $query;
 		}
 		foreach ($this->columns as $objCol => $dbCol) {
-			if ($this->$objCol) {
+			if (isset($this->$objCol)) {
 				$where .= " and $dbCol = '{$this->$objCol}'";
 			}
 		}
@@ -619,7 +638,7 @@ class Data {
 	public function findOne() {
 		$where = 'where 1=1 ';
 		foreach ($this->columns as $objCol => $dbCol) {
-			if ($this->$objCol) {
+			if (isset($this->$objCol)) {
 				$where .= " and $dbCol = '{$this->$objCol}'";
 			}
 		}

@@ -147,10 +147,8 @@ class Card extends ApiBase {
 	public function approve($cardId) {
 		\Visitor::instance()->checkAuth();
 
-		$query = new MCard();
-		$query->id = $cardId;
 		/** @var MCard $card */
-		$card = $query->findOne();
+		$card = Graph::getCardById($cardId);
 
 		if ($card === false) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '读书卡片不存在');
@@ -171,6 +169,15 @@ class Card extends ApiBase {
 			$query->userAvatar = $user->avatar;
 			$query->createTime = strtotime('now');
 			$query->insert();
+
+			$extra = [
+				'router' => 'card',
+				'extra'  => $cardId,
+			];
+			// 给被点赞的同志的发一条系统消息
+			Graph::sendSystemMessage(BOCHA_SYSTEM_USER_ID, $card->userId,
+					"书友 {$user->nickname} 给你的读书卡片 {$card->title} 点了一个赞~",
+					json_stringify($extra));
 		}
 
 		return [
