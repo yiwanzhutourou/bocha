@@ -300,6 +300,26 @@ class Graph {
 				"user_1 = {$user1} and user_2 = {$user2}", '');
 		}
 	}
+
+	public static function getCardApprovals($cardId) {
+		$query = new MCardApproval();
+		$query->cardId = $cardId;
+		return $query->query('', 'ORDER BY create_time DESC');
+	}
+
+	public static function getCardApprovalCount($cardId) {
+		$query = new MCardApproval();
+		$query->cardId = $cardId;
+		$count = $query->count();
+		return $count === false ? 0 : $count;
+	}
+	
+	public static function hasApproved($cardId, $userId) {
+		$query = new MCardApproval();
+		$query->cardId = $cardId;
+		$query->userId = $userId;
+		return $query->findOne() !== false;
+	}
 }
 
 class DataConnection {
@@ -1037,6 +1057,7 @@ class MChatMessage extends Data {
  * @property mixed bookIsbn
  * @property mixed createTime
  * @property mixed status
+ * @property mixed readCount
  */
 class MCard extends Data {
 	public function __construct() {
@@ -1052,6 +1073,32 @@ class MCard extends Data {
 				'bookIsbn'   => 'book_isbn',
 				'createTime' => 'create_time',
 				'status'     => 'status',
+				'readCount'  => 'read_count',
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
+ * Class MCardApproval
+ * @property mixed id
+ * @property mixed userId
+ * @property mixed cardId
+ * @property mixed createTime
+ * @property mixed userAvatar
+ */
+class MCardApproval extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_book_card_approval',
+			'columns' => [
+				'id'         => '_id',
+				'cardId'     => 'card_id',
+				'userId'     => 'user_id',
+				'createTime' => 'create_time',
+				'userAvatar' => 'user_avatar',
 			]
 		];
 		parent::init($options);

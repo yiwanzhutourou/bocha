@@ -9,6 +9,7 @@ namespace Api;
 use Graph\Graph;
 use Graph\MBook;
 use Graph\MCard;
+use Graph\MCardApproval;
 use Graph\MCardPulp;
 use Graph\MUser;
 use Graph\MUserBook;
@@ -69,6 +70,7 @@ class Card extends ApiBase {
 		$query->bookIsbn = $bookIsbn;
 		$query->createTime = strtotime('now');
 		$query->status = CARD_STATUS_NORMAL;
+		$query->readCount = 0;
 
 		$insertId = $query->insert();
 		return $insertId;
@@ -142,6 +144,76 @@ class Card extends ApiBase {
 		return 'ok';
 	}
 
+	public function approve($cardId) {
+		\Visitor::instance()->checkAuth();
+
+		$query = new MCard();
+		$query->id = $cardId;
+		/** @var MCard $card */
+		$card = $query->findOne();
+
+		if ($card === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '读书卡片不存在');
+		}
+
+		$user = \Visitor::instance()->getUser();
+		$userId = $user->id;
+
+		$query = new MCardApproval();
+		$query->cardId = $cardId;
+		$query->userId = $userId;
+
+		/** @var MCardApproval $approval */
+		$approval = $query->findOne();
+
+		// 已经点过赞的就让他去吧
+		if ($approval === false) {
+			$query->userAvatar = $user->avatar;
+			$query->createTime = strtotime('now');
+			$query->insert();
+		}
+
+		return [
+			'result' => 'ok',
+			'id'     => $user->id,
+			'avatar' => $user->avatar,
+		];
+	}
+
+	public function unapprove($cardId) {
+		\Visitor::instance()->checkAuth();
+
+		$query = new MCard();
+		$query->id = $cardId;
+		/** @var MCard $card */
+		$card = $query->findOne();
+
+		if ($card === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '读书卡片不存在');
+		}
+
+		$user = \Visitor::instance()->getUser();
+		$userId = $user->id;
+
+		$query = new MCardApproval();
+		$query->cardId = $cardId;
+		$query->userId = $userId;
+
+		/** @var MCardApproval $approval */
+		$approval = $query->findOne();
+
+		// 已经点过赞的就让他去吧
+		if ($approval !== false) {
+			$approval->delete();
+		}
+
+		return [
+			'result' => 'ok',
+			'id'     => $user->id,
+			'avatar' => $user->avatar,
+		];
+	}
+
 	public function getMyCards() {
 		\Visitor::instance()->checkAuth();
 
@@ -153,17 +225,15 @@ class Card extends ApiBase {
 		$cardList = $query->query("status = '0'", 'ORDER BY create_time DESC');
 
 		return array_map(function($card) {
-			/** @var MBook $book */
-			$book = Graph::findBook($card->bookIsbn);
-
 			/** @var MCard $card */
 			return [
 				'id'         => $card->id,
 				'title'      => $card->title,
 				'content'    => mb_substr($card->content, 0, 48, 'utf-8'),
 				'picUrl'     => getListThumbnailUrl($card->picUrl),
-				'bookTitle'  => $book->title,
 				'createTime' => $card->createTime,
+				'readCount'     => intval($card->readCount),
+				'approvalCount' => Graph::getCardApprovalCount($card->id),
 			];
 		}, $cardList);
 	}
@@ -176,11 +246,18 @@ class Card extends ApiBase {
 
 		/** @var MCard $card */
 		$card = $query->findOne();
-		if ($card === false) {
-			return '';
+		if ($card === false || $card->status === CARD_STATUS_DELETED) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '读书卡片已被删除');
 		} else {
-			/** @var MUser $user */
-			$user = Graph::findUserById($card->userId);
+			/** @var MUser $cardUser */
+			$cardUser = Graph::findUserById($card->userId);
+
+			$user = \Visitor::instance()->getUser();
+			if ($user != null) {
+				$hasApproved = Graph::hasApproved($cardId, $user->id);
+			} else {
+				$hasApproved = false;
+			}
 
 			/** @var MBook $book */
 			$book = Graph::findBook($card->bookIsbn);
@@ -191,19 +268,37 @@ class Card extends ApiBase {
 				'cover'     => $book->cover,
 				'publisher' => $book->publisher,
 			];
+
+			// approval list
+			$approvalList = array_map(function($approval) {
+				/** @var MCardApproval $approval */
+				return [
+					'id'     => $approval->userId,
+					'avatar' => $approval->userAvatar,
+				];
+			}, Graph::getCardApprovals($cardId));
+			$approvalCount = Graph::getCardApprovalCount($cardId);
+
+			// 增加一次浏览
+			$query->update('read_count = read_count + 1');
+
 			return [
-				'id'         => $card->id,
-				'user'        => [
-					'id'       => $user->id,
-					'nickname' => $user->nickname,
-					'avatar'   => $user->avatar,
+				'id'            => $card->id,
+				'user'          => [
+					'id'       => $cardUser->id,
+					'nickname' => $cardUser->nickname,
+					'avatar'   => $cardUser->avatar,
 				],
-				'title'      => $card->title,
-				'content'    => $card->content,
-				'picUrl'     => getOriginalImgUrl($card->picUrl),
-				'book'       => $bookData,
-				'createTime' => $card->createTime,
-				'isMe'       => \Visitor::instance()->isMe($card->userId),
+				'title'         => $card->title,
+				'content'       => $card->content,
+				'picUrl'        => getOriginalImgUrl($card->picUrl),
+				'book'          => $bookData,
+				'createTime'    => $card->createTime,
+				'isMe'          => \Visitor::instance()->isMe($card->userId),
+				'hasApproved'   => $hasApproved,
+				'approvalList'  => $approvalList,
+				'approvalCount' => $approvalCount,
+				'readCount'     => intval($card->readCount),
 			];
 		}
 	}
@@ -215,17 +310,15 @@ class Card extends ApiBase {
 		$cardList = $query->query("status = '0'", 'ORDER BY create_time DESC');
 
 		return array_map(function($card) {
-			/** @var MBook $book */
-			$book = Graph::findBook($card->bookIsbn);
-
 			/** @var MCard $card */
 			return [
 				'id'         => $card->id,
 				'title'      => $card->title,
 				'content'    => mb_substr($card->content, 0, 48, 'utf-8'),
 				'picUrl'     => getListThumbnailUrl($card->picUrl),
-				'bookTitle'  => $book->title,
 				'createTime' => $card->createTime,
+				'readCount'     => intval($card->readCount),
+				'approvalCount' => Graph::getCardApprovalCount($card->id),
 			];
 		}, $cardList);
 	}
@@ -256,6 +349,8 @@ class Card extends ApiBase {
 				'content'    => mb_substr($card->content, 0, 48, 'utf-8'),
 				'picUrl'     => getListThumbnailUrl($card->picUrl),
 				'createTime' => $card->createTime,
+				'readCount'     => intval($card->readCount),
+				'approvalCount' => Graph::getCardApprovalCount($card->id),
 			];
 		}, $cardList);
 
@@ -319,16 +414,18 @@ class Card extends ApiBase {
 			return [
 				'type' => 'card',
 				'data' => [
-					'id'         => $card->id,
-					'user'       => [
+					'id'            => $card->id,
+					'user'          => [
 						'id'       => $user->id,
 						'nickname' => $user->nickname,
 						'avatar'   => $user->avatar,
 					],
-					'title'      => $card->title,
-					'content'    => mb_substr($card->content, 0, 48, 'utf-8'),
-					'picUrl'     => getListThumbnailUrl($card->picUrl),
-					'createTime' => $card->createTime,
+					'title'         => $card->title,
+					'content'       => mb_substr($card->content, 0, 48, 'utf-8'),
+					'picUrl'        => getListThumbnailUrl($card->picUrl),
+					'createTime'    => $card->createTime,
+					'readCount'     => intval($card->readCount),
+					'approvalCount' => Graph::getCardApprovalCount($card->id),
 				],
 			];
 		}, $filteredList);
