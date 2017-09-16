@@ -557,8 +557,19 @@ class User extends ApiBase {
 		$this->checkAuth();
 
 		$user = \Visitor::instance()->getUser();
-		if ($user->getAddressList() !== false && count($user->getAddressList()) >= 3) {
+		$addressList = $user->getAddressList();
+
+		if ($addressList !== false && count($addressList) >= 3) {
 			throw new Exception(Exception::BAD_REQUEST , '最多添加三个地址~');
+		}
+
+		// 判断一下 2 公里内不能添加多个地址
+		foreach ($addressList as $addressItem) {
+			/** @var MUserAddress $addressItem */
+			if (abs($latitude - $addressItem->latitude) <= 0.0038
+					&& abs($longitude - $addressItem->longitude) <= 0.0034) {
+				throw new Exception(Exception::BAD_REQUEST , '你已经在附近添加过一个地址了');
+			}
 		}
 
 		$userAddress = new MUserAddress();
@@ -567,12 +578,8 @@ class User extends ApiBase {
 		$userAddress->detail = $detail;
 		$userAddress->latitude = $latitude;
 		$userAddress->longitude = $longitude;
-		if ($userAddress->findOne() !== false) {
-			throw new Exception(Exception::RESOURCE_ALREADY_ADDED , '不可以添加重复的地址哦~');
-		} else {
-			$userAddress->city = reversePoi($latitude, $longitude);
-			$userAddress->insert();
-		}
+		$userAddress->city = reversePoi($latitude, $longitude);
+		$userAddress->insert();
 		return $name;
 	}
 
