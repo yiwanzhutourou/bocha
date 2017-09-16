@@ -60,6 +60,7 @@ class Card extends ApiBase {
 		$query->userId = $userId;
 		$query->title = $title;
 		$query->content = $content;
+		$query->status = CARD_STATUS_NORMAL;
 
 		// 先简单防一下
 		if ($query->findOne() !== false) {
@@ -69,7 +70,6 @@ class Card extends ApiBase {
 		$query->picUrl = $picUrl;
 		$query->bookIsbn = $bookIsbn;
 		$query->createTime = strtotime('now');
-		$query->status = CARD_STATUS_NORMAL;
 		$query->readCount = 0;
 
 		$insertId = $query->insert();
