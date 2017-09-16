@@ -47,7 +47,7 @@ class Map extends ApiBase {
 		$query = 'latitude > ' . $minLat . ' and latitude < ' . $maxLat;
 		$query = $query . ' and longitude > ' . $minLng . ' and longitude < ' . $maxLng;
 		return array_map(function($address) {
-			$user = Graph::findUserById($addres->userId);
+			$user = Graph::findUserById($address->userId);
 			return [
 				'id' 				=> $address->userId,
 				'title'			=> $user->nickname,
