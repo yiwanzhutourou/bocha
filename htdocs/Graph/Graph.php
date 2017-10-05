@@ -20,6 +20,9 @@ define ('CARD_STATUS_DELETED', 1);
 define ('BOCHA_SYSTEM_USER_ID', 0);
 define ('BOCHA_ACTIVITY_USER_ID', 1);
 
+define ('BOOK_CANNOT_BE_BORROWED', 1);
+define ('BOOK_CAN_BE_BORROWED', 0);
+
 class Graph {
 
 	/**
@@ -744,9 +747,37 @@ class MUser extends Data {
 		return $userBook->find();
 	}
 
+	public function getBooks($count) {
+		$userBook = new MUserBook();
+		$userBook->userId = $this->id;
+		return $userBook->query('', "ORDER BY _id DESC LIMIT 0,{$count}");
+	}
+
+	public function getBorrowBooksLimit($count) {
+		$userBook = new MUserBook();
+		$userBook->userId = $this->id;
+		$userBook->canBeBorrowed = BOOK_CAN_BE_BORROWED;
+		return $userBook->query('', "ORDER BY _id DESC LIMIT 0,{$count}");
+	}
+
+	public function getBorrowBooks() {
+		$userBook = new MUserBook();
+		$userBook->userId = $this->id;
+		$userBook->canBeBorrowed = BOOK_CAN_BE_BORROWED;
+		return $userBook->find();
+	}
+
 	public function getBookListCount() {
 		$userBook = new MUserBook();
 		$userBook->userId = $this->id;
+		$count = $userBook->count();
+		return $count === false ? 0 : $count;
+	}
+
+	public function getBorrowBookCount() {
+		$userBook = new MUserBook();
+		$userBook->userId = $this->id;
+		$userBook->canBeBorrowed = BOOK_CAN_BE_BORROWED;
 		$count = $userBook->count();
 		return $count === false ? 0 : $count;
 	}
@@ -855,6 +886,7 @@ class MUserAddress extends Data {
  * @property mixed userId
  * @property mixed isbn
  * @property mixed createTime
+ * @property mixed canBeBorrowed
  */
 class MUserBook extends Data {
 	public function __construct() {
@@ -862,10 +894,11 @@ class MUserBook extends Data {
 			'key'     => 'id',
 			'table'   => 'bocha_user_book',
 			'columns' => [
-				'id'      => '_id',
-				'userId'  => 'user_id',
-				'isbn'    => 'isbn',
-				'createTime' => 'create_time',
+				'id'            => '_id',
+				'userId'        => 'user_id',
+				'isbn'          => 'isbn',
+				'createTime'    => 'create_time',
+				'canBeBorrowed' => 'can_be_borrowed',
 			]
 		];
 		parent::init($options);

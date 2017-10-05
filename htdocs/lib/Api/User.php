@@ -286,7 +286,7 @@ class User extends ApiBase {
 		$cardCount = $user->getCardListCount();
 
 		// 图书列表
-		$userBooks = $one->getBookList();
+		$userBooks = $one->getBooks(3);
 		$books = [];
 		/** @var MUserBook $userBook */
 		foreach ($userBooks as $userBook) {
@@ -301,23 +301,53 @@ class User extends ApiBase {
 					'author'    => json_decode($bookOne->author),
 					'cover'     => $bookOne->cover,
 					'publisher' => $bookOne->publisher,
+					'canBorrow' => false,
 				];
 			}
 		}
+		$bookCount = $one->getBookListCount();
+
+		$borrowBooks = array_map(function($userBook) use ($isMe) {
+			/** @var MUserBook $userBook */
+			$book = new MBook();
+			$book->isbn = $userBook->isbn;
+			/** @var MBook $bookOne */
+			$bookOne = $book->findOne();
+			if ($bookOne === false) {
+				return false;
+			}
+			return [
+				'isbn'      => $bookOne->isbn,
+				'title'     => $bookOne->title,
+				'author'    => json_decode($bookOne->author),
+				'cover'     => $bookOne->cover,
+				'publisher' => $bookOne->publisher,
+				'canBorrow' => !$isMe,
+			];
+		}, $one->getBorrowBooksLimit(5));
+
+		$borrowBooks = array_filter($borrowBooks, function($book) {
+			return $book !== false;
+		});
+		$borrowBookCount = $one->getBorrowBookCount();
+
 
 		return [
-			'userId'         => $userId,
-			'info'           => $info === false ? '' : $info->info,
-			'nickname'       => $one->nickname,
-			'avatar'         => $one->avatar,
-			'address'        => $addressList,
-			'cards'          => $cards,
-			'cardCount'      => $cardCount,
-			'books'          => $books,
-			'isMe'           => $isMe,
-			'followed'       => $isFollowing,
-			'followerCount'  => Graph::getFollowerCount($userId),
-			'followingCount' => Graph::getFollowingCount($userId),
+			'userId'          => $userId,
+			'info'            => $info === false ? '' : $info->info,
+			'nickname'        => $one->nickname,
+			'avatar'          => $one->avatar,
+			'address'         => $addressList,
+			'cards'           => $cards,
+			'cardCount'       => $cardCount,
+			'borrowBooks'     => $borrowBooks,
+			'borrowBookCount' => $borrowBookCount,
+			'books'           => $books,
+			'bookCount'       => $bookCount,
+			'isMe'            => $isMe,
+			'followed'        => $isFollowing,
+			'followerCount'   => Graph::getFollowerCount($userId),
+			'followingCount'  => Graph::getFollowingCount($userId),
 		];
 	}
 
@@ -413,17 +443,23 @@ class User extends ApiBase {
 		return 'ok';
 	}
 
-	public function getUserBooks($userId) {
+	public function getUserBooks($userId, $all) {
 		$user = new MUser();
 		$user->id = $userId;
+		/** @var MUser $one */
 		$one = $user->findOne();
 
 		if ($one === false) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
 		}
 
-		/** @var MUser $one */
-		$userBooks = $one->getBookList();
+		$isMe = \Visitor::instance()->isMe($userId);
+
+		if (intval($all) === 0) {
+			$userBooks = $one->getBookList();
+		} else {
+			$userBooks = $one->getBorrowBooks();
+		}
 
 		$result = [];
 		/** @var MUserBook $userBook */
@@ -439,15 +475,21 @@ class User extends ApiBase {
 					'author'    => json_decode($one->author),
 					'cover'     => $one->cover,
 					'publisher' => $one->publisher,
+					'canBorrow' => !$isMe && intval($userBook->canBeBorrowed) === BOOK_CAN_BE_BORROWED,
 				];
 			}
 		}
 		return $result;
 	}
 
-	public function getMyBooks() {
+	// 这个接口只用于设置界面的我的书,可否借阅的字段仅用来标识闲置图书状态,不用于显示借阅按钮
+	public function getMyBooks($all) {
 		$this->checkAuth();
-		$userBooks = \Visitor::instance()->getUser()->getBookList();
+		if (intval($all) === 0) {
+			$userBooks = \Visitor::instance()->getUser()->getBookList();
+		} else {
+			$userBooks = \Visitor::instance()->getUser()->getBorrowBooks();
+		}
 		$result = [];
 		/** @var MUserBook $userBook */
 		foreach ($userBooks as $userBook) {
@@ -462,6 +504,7 @@ class User extends ApiBase {
 					'author'    => json_decode($one->author),
 					'cover'     => $one->cover,
 					'publisher' => $one->publisher,
+					'canBorrow' => intval($userBook->canBeBorrowed) === BOOK_CAN_BE_BORROWED,
 				];
 			}
 		}
@@ -491,9 +534,36 @@ class User extends ApiBase {
 			throw new Exception(Exception::RESOURCE_ALREADY_ADDED , '不可以添加重复的图书哦~');
 		} else {
 			$userBook->createTime = strtotime('now');
+			$userBook->canBeBorrowed = BOOK_CAN_BE_BORROWED;
 			$userBook->insert();
 		}
 		return $isbn;
+	}
+
+	public function markBookAs($isbn, $canBeBorrowed) {
+		$this->checkAuth();
+
+		$user = \Visitor::instance()->getUser();
+
+		$userBook = new MUserBook();
+		$userBook->userId = $user->id;
+		$userBook->isbn = $isbn;
+
+		$one = $userBook->findOne();
+
+		if ($one === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND , '图书不存在');
+		} else {
+			$canBeBorrowedInt = intval($canBeBorrowed);
+			if ($canBeBorrowedInt !== BOOK_CAN_BE_BORROWED
+					&& $canBeBorrowedInt !== BOOK_CANNOT_BE_BORROWED) {
+				$canBeBorrowedInt = BOOK_CAN_BE_BORROWED;
+			}
+			$one->canBeBorrowed = $canBeBorrowedInt;
+			$one->update();
+
+			return 'ok';
+		}
 	}
 
 	public function removeBook($isbn) {
