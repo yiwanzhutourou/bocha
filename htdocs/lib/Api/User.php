@@ -885,12 +885,21 @@ class User extends ApiBase {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND , '用户不存在~');
 		}
 
-		$selfId = \Visitor::instance()->getUser()->id;
+		$self = \Visitor::instance()->getUser();
+		$selfId = $self->id;
 		if ($toUser === $selfId) {
 			throw new Exception(Exception::BAD_REQUEST , '不可以关注自己哦~');
 		}
 
 		Graph::addFollower($selfId, $toUser);
+
+		$extra = [
+			'router' => 'follower',
+		];
+		// 给被关注的同志发一条系统消息
+		Graph::sendSystemMessage(BOCHA_SYSTEM_USER_ID, $toUser,
+								 "书友 {$self->nickname} 关注了你~",
+								 json_stringify($extra));
 
 		return 'ok';
 	}

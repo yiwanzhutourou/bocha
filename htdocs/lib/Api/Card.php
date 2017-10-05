@@ -196,7 +196,7 @@ class Card extends ApiBase {
 			];
 
 			if (intval($userId) !== intval($card->userId)) {
-				// 给被点赞的同志的发一条系统消息
+				// 给被点赞的同志发一条系统消息
 				Graph::sendSystemMessage(BOCHA_SYSTEM_USER_ID, $card->userId,
 										 "书友 {$user->nickname} 给你的读书卡片 {$card->title} 点了一个赞~",
 										 json_stringify($extra));
