@@ -25,6 +25,21 @@ class Card extends ApiBase {
 
 	public function insert($content, $title, $picUrl, $bookIsbn = '') {
 		\Visitor::instance()->checkAuth();
+
+		if (!empty($bookIsbn)) {
+			// check book in Douban
+			$url = "https://api.douban.com/v2/book/{$bookIsbn}";
+			$response = file_get_contents($url);
+
+			$doubanBook = json_decode($response);
+			if ($doubanBook === null || empty($doubanBook->id)) {
+				throw new Exception(Exception::RESOURCE_NOT_FOUND, '无法获取图书信息');
+			}
+
+			$book = new MBook();
+			$book->updateBook($doubanBook);
+		}
+
 		$userId = \Visitor::instance()->getUserId();
 
 		if (!empty($picUrl)) {
