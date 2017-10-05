@@ -14,6 +14,11 @@ use Graph\MCardPulp;
 use Graph\MUser;
 use Graph\MUserBook;
 
+define ('ACTIVITY_CARD_ID', 1);
+define ('ACTIVITY_CARD_TITLE', '[置顶] 写读书卡片，送书送Kindle');
+define ('ACTIVITY_CARD_CONTENT', "参与方式：在有读书房小程序内发布读书卡片\n\n流程：在有读书房小程序内注册，填写个人书房信息，添加图书，发布读书卡片，转发邀请朋友们点赞，有读书房将在 10月9日 通过消息收集你的邮寄信息\n\n规则：10月1-8日 发布的有效卡片！（有效卡片：原创内容，关联图书，上传图片）点赞数前 50 的朋友们，我们将精选一本“只给你”的书；点赞数最高者，可获 Kindle 一部（所有解释权归有读书房所有）");
+define('ACTIVITY_CARD_PIC', 'http://othb16dht.bkt.clouddn.com/WechatIMG3886.jpeg');
+
 class Card extends ApiBase {
 
 	// --------- 自己的读书卡片相关的接口,需要登录
@@ -251,6 +256,12 @@ class Card extends ApiBase {
 	// --------- 别人的读书卡片相关的接口,不需要登录
 
 	public function getCardById($cardId) {
+
+		// 活动 card
+		if (intval($cardId) === ACTIVITY_CARD_ID) {
+			return $this->createActivityDetail();
+		}
+
 		$query = new MCard();
 		$query->id = $cardId;
 
@@ -531,6 +542,11 @@ class Card extends ApiBase {
 			return $a['data']['createTime'] < $b['data']['createTime'] ? 1 : -1;
 		});
 
+		if ($isTop) {
+			// 活动置顶
+			array_unshift($finalList, $this->createActivityItem());
+		}
+
 		return [
 			'list'             => $finalList,
 			'topCursor'        => $topCursor,
@@ -566,5 +582,75 @@ class Card extends ApiBase {
 			return $item['data']['createTime'];
 		}
 		return -1;
+	}
+
+	private function createActivityItem() {
+		/** @var MCard $card */
+		$card = Graph::findCardById(ACTIVITY_CARD_ID);
+		return [
+			'type' => 'card',
+			'data' => [
+				'id'            => ACTIVITY_CARD_ID,
+				'user'          => [
+					'id'       => BOCHA_ACTIVITY_USER_ID,
+					'nickname' => '有读书房',
+					'avatar'   => 'http://othb16dht.bkt.clouddn.com/Fm3qYpsmNFGRDbWeTOQDRDfiJz9l?imageView2/1/w/640/h/640/format/jpg/q/75|imageslim',
+				],
+				'title'         => ACTIVITY_CARD_TITLE,
+				'content'       => mb_substr(ACTIVITY_CARD_CONTENT, 0, 48, 'utf-8'),
+				'picUrl'        => getListThumbnailUrl(ACTIVITY_CARD_PIC),
+				'createTime'    => strtotime('2017-9-30'),
+				'readCount'     => $card === false ? 0 : intval($card->readCount),
+				'approvalCount' => Graph::getCardApprovalCount(ACTIVITY_CARD_ID),
+			],
+		];
+	}
+
+	private function createActivityDetail() {
+		/** @var MCard $card */
+		$card = Graph::findCardById(ACTIVITY_CARD_ID);
+
+		if ($card === false) {
+			return [];
+		}
+
+		$user = \Visitor::instance()->getUser();
+		if ($user != null) {
+			$hasApproved = Graph::hasApproved(ACTIVITY_CARD_ID, $user->id);
+		} else {
+			$hasApproved = false;
+		}
+
+		// approval list
+		$approvalList = array_map(function($approval) {
+			/** @var MCardApproval $approval */
+			return [
+				'id'     => $approval->userId,
+				'avatar' => $approval->userAvatar,
+			];
+		}, Graph::getCardApprovals(ACTIVITY_CARD_ID));
+		$approvalCount = Graph::getCardApprovalCount(ACTIVITY_CARD_ID);
+
+		// 增加一次浏览
+		$card->update('read_count = read_count + 1');
+
+		return [
+			'id'            => ACTIVITY_CARD_ID,
+			'user'          => [
+				'id'       => BOCHA_ACTIVITY_USER_ID,
+				'nickname' => '有读书房',
+				'avatar'   => 'http://othb16dht.bkt.clouddn.com/Fm3qYpsmNFGRDbWeTOQDRDfiJz9l?imageView2/1/w/640/h/640/format/jpg/q/75|imageslim',
+			],
+			'title'         => ACTIVITY_CARD_TITLE,
+			'content'       => ACTIVITY_CARD_CONTENT,
+			'picUrl'        => getOriginalImgUrl(ACTIVITY_CARD_PIC),
+			'book'          => null,
+			'createTime'    => strtotime('2017-10-1'),
+			'isMe'          => false,
+			'hasApproved'   => $hasApproved,
+			'approvalList'  => $approvalList,
+			'approvalCount' => $approvalCount,
+			'readCount'     => intval($card->readCount),
+		];
 	}
 }

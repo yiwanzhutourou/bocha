@@ -18,6 +18,7 @@ define ('CARD_STATUS_NORMAL', 0);
 define ('CARD_STATUS_DELETED', 1);
 
 define ('BOCHA_SYSTEM_USER_ID', 0);
+define ('BOCHA_ACTIVITY_USER_ID', 1);
 
 class Graph {
 
@@ -45,6 +46,12 @@ class Graph {
 		$user = new MUser();
 		$user->id = $id;
 		return $user->load();
+	}
+
+	public static function findCardById($id) {
+		$query = new MCard();
+		$query->id = $id;
+		return $query->findOne();
 	}
 
 	public static function findMobileByUserId($id) {
