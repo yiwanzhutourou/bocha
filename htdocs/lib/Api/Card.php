@@ -15,9 +15,10 @@ use Graph\MUser;
 use Graph\MUserBook;
 
 define ('ACTIVITY_CARD_ID', 1);
-define ('ACTIVITY_CARD_TITLE', '[置顶] 写读书卡片，送书送Kindle');
+define ('ACTIVITY_CARD_TITLE', '');
 define ('ACTIVITY_CARD_CONTENT', "参与方式：在有读书房小程序内发布读书卡片\n\n流程：在有读书房小程序内注册，填写个人书房信息，添加图书，发布读书卡片，转发邀请朋友们点赞，有读书房将在 10月9日 通过消息收集你的邮寄信息\n\n规则：10月1-8日 发布的有效卡片！（有效卡片：原创内容，关联图书，上传图片）点赞数前 50 的朋友们，我们将精选一本“只给你”的书；点赞数最高者，可获 Kindle 一部（所有解释权归有读书房所有）");
 define('ACTIVITY_CARD_PIC', 'http://othb16dht.bkt.clouddn.com/WechatIMG3886.jpeg');
+define('ACTIVITY_CARD_BANNER_PIC', 'http://othb16dht.bkt.clouddn.com/zhongqiu.jpeg');
 
 class Card extends ApiBase {
 
@@ -557,12 +558,16 @@ class Card extends ApiBase {
 			return $a['data']['createTime'] < $b['data']['createTime'] ? 1 : -1;
 		});
 
+		$banners = [];
 		if ($isTop) {
 			// 活动置顶
-			array_unshift($finalList, $this->createActivityItem());
+			$banners[] =  $this->createActivityItem();
+			$banners[] = $this->createCardItem('30');
+			$banners[] =  $this->createNewBookItem('27069925');
 		}
 
 		return [
+			'banner'           => $banners,
 			'list'             => $finalList,
 			'topCursor'        => $topCursor,
 			'bottomCursor'     => $bottomCursor,
@@ -606,17 +611,48 @@ class Card extends ApiBase {
 			'type' => 'card',
 			'data' => [
 				'id'            => ACTIVITY_CARD_ID,
-				'user'          => [
-					'id'       => BOCHA_ACTIVITY_USER_ID,
-					'nickname' => '有读书房',
-					'avatar'   => 'http://othb16dht.bkt.clouddn.com/Fm3qYpsmNFGRDbWeTOQDRDfiJz9l?imageView2/1/w/640/h/640/format/jpg/q/75|imageslim',
-				],
 				'title'         => ACTIVITY_CARD_TITLE,
-				'content'       => mb_substr(ACTIVITY_CARD_CONTENT, 0, 48, 'utf-8'),
-				'picUrl'        => getListThumbnailUrl(ACTIVITY_CARD_PIC),
-				'createTime'    => strtotime('2017-9-30'),
-				'readCount'     => $card === false ? 0 : intval($card->readCount),
-				'approvalCount' => Graph::getCardApprovalCount(ACTIVITY_CARD_ID),
+				'picUrl'        => ACTIVITY_CARD_BANNER_PIC,
+			],
+		];
+	}
+
+	private function createCardItem($id) {
+		/** @var MCard $card */
+		$card = Graph::findCardById($id);
+		return [
+			'type' => 'card',
+			'data' => [
+				'id'            => $id,
+				'title'         => $card->title,
+				'picUrl'        => $card->picUrl,
+			],
+		];
+	}
+
+	private function createNewBookItem($isbn) {
+
+		$url = "https://api.douban.com/v2/book/{$isbn}";
+		$response = file_get_contents($url);
+		$doubanBook = json_decode($response);
+		if ($doubanBook === null || empty($doubanBook->id)) {
+			return false;
+		}
+
+		/** @var MBook $book */
+		$book = Graph::findBook($isbn);
+		
+		if ($book === false) {
+			$book = new MBook();
+			$book->updateBook($doubanBook);
+		}
+		$bookPic = $doubanBook->images->large;
+		return [
+			'type' => 'book',
+			'data' => [
+				'id'            => $book->isbn,
+				'title'         => "新书推荐: {$book->title}",
+				'picUrl'        => $bookPic,
 			],
 		];
 	}
