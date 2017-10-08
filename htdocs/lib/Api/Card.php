@@ -562,7 +562,7 @@ class Card extends ApiBase {
 		if ($isTop) {
 			// 活动置顶
 			$banners[] =  $this->createActivityItem();
-			$banners[] = $this->createCardItem('30');
+			$banners[] = $this->createCardItem('54');
 			$banners[] =  $this->createNewBookItem('27069925');
 		}
 
