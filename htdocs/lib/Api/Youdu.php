@@ -6,6 +6,9 @@
 
 namespace Api;
 
+use Graph\Graph;
+use Graph\MCard;
+
 class Youdu extends ApiBase {
 	public function rights() {
 		return "有读书房拥有本微信小程序内所有资料的版权，任何被授权的浏览、复制、打印和传播属于本网站内的资料必须符合以下条件：\n"
@@ -22,5 +25,19 @@ class Youdu extends ApiBase {
 			."（2）有读书房是仅为用户提供图书展示与借阅服务的平台，作为内容的发表者，需自行对其发布内容负责，因所发表内容引发的一切纠纷，由该内容的发表者承担全部法律及连带责任，有读书房不承担任何法律及连带责任。\n"
 			."（3）个人或单位如认为有读书房上存在隐私自身合法权益的内容，及时与有读书房取得联系，准备好具有法律效应的证明材料，以便有读书房迅速做出处理。\n\n"
 			."对免责声明的解释、修改及更新权均属于有读书房所有。";
+	}
+
+	public function huHaha() {
+		$query = new MCard();
+		$cardList = $query->query("status = '0'", 'ORDER BY create_time DESC');
+
+		if ($cardList !== false) {
+			foreach ($cardList as $card) {
+				/** @var MCard $card */
+				Graph::addNewCardToDiscoverFlow($card);
+			}
+		}
+
+		return 'ok';
 	}
 }

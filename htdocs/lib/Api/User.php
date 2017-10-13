@@ -535,7 +535,10 @@ class User extends ApiBase {
 		} else {
 			$userBook->createTime = strtotime('now');
 			$userBook->canBeBorrowed = BOOK_CAN_BE_BORROWED;
-			$userBook->insert();
+			if ($userBook->insert() > 0) {
+				// 检查并添加新图书到发现流
+				Graph::addNewBookToDiscoverFlow($book, $userBook);
+			}
 		}
 		return $isbn;
 	}
@@ -571,6 +574,8 @@ class User extends ApiBase {
 
 		$user = \Visitor::instance()->getUser();
 		if ($user->removeBook($isbn) > 0) {
+			// 图书从发现流中删除
+			Graph::removeBookFromDiscoverFlow($isbn, $user->id);
 			return $isbn;
 		} else {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '无法删除未添加的图书~');

@@ -23,6 +23,11 @@ define ('BOCHA_ACTIVITY_USER_ID', 1);
 define ('BOOK_CANNOT_BE_BORROWED', 1);
 define ('BOOK_CAN_BE_BORROWED', 0);
 
+define ('DISCOVER_ITEM_NEW', 0);
+define ('DISCOVER_ITEM_APPROVED', 1);
+define ('DISCOVER_ITEM_DENIED', 2);
+define ('DISCOVER_ITEM_USER_DELETED', 3);
+
 class Graph {
 
 	/**
@@ -54,6 +59,13 @@ class Graph {
 	public static function findCardById($id) {
 		$query = new MCard();
 		$query->id = $id;
+		return $query->findOne();
+	}
+
+	public static function findUserBook($isbn, $userId) {
+		$query = new MUserBook();
+		$query->isbn = $isbn;
+		$query->userId = $userId;
 		return $query->findOne();
 	}
 
@@ -348,6 +360,82 @@ class Graph {
 		$query = new MCard();
 		$query->id = $cardId;
 		return $query->findOne();
+	}
+
+	public static function getNewestBooksFromDiscoverFlow($n) {
+		$query = new MDiscoverFlow();
+		$condition = "type = 'book' and status = '1'";
+		return $query->query($condition,
+								  "ORDER BY create_time DESC LIMIT 0,{$n}");
+	}
+
+	public static function addNewBookToDiscoverFlow($book, $userBook) {
+		/** @var MBook $book */
+		if (intval($book->doubanRaters) < 20
+			|| floatval($book->doubanAverage) < 8.0) {
+			// 评分低于 7 分并且评论人数少于 50 的书不展示在发现页
+			return;
+		}
+
+		/** @var MUserBook $userBook */
+		// 这里的逻辑后续还可以调整的=.=
+		// 取流上最新的 30 本书，如果这个用户在这么多书里已经有 3 本书了，就不再添加他新增的书了
+		$bookList = self::getNewestBooksFromDiscoverFlow(30);
+		if ($bookList !== false) {
+			$bookCount = 0;
+			foreach ($bookList as $item) {
+				/** @var MDiscoverFlow $item */
+				if ($item->userId === $userBook->userId) {
+					$bookCount++;
+				}
+				if ($bookCount >= 3) {
+					return;
+				}
+			}
+		}
+
+		// 添加图书到发现流
+		$newItem = new MDiscoverFlow();
+		$newItem->type = 'book';
+		$newItem->contentId = $userBook->isbn;
+		$newItem->userId = $userBook->userId;
+		$newItem->status = DISCOVER_ITEM_APPROVED; // 图书暂时就用豆瓣的评分，不用审核
+		$newItem->createTime = $userBook->createTime;
+		$newItem->insert();
+	}
+
+	public static function removeBookFromDiscoverFlow($isbn, $userId) {
+		$query = new MDiscoverFlow();
+		$query->status = DISCOVER_ITEM_USER_DELETED;
+		$query->modify("type = 'book' and content_id = {$isbn} and user_id = {$userId}", '');
+	}
+
+	public static function addNewCardToDiscoverFlow($card) {
+		// 卡片因为后台会审核，所以去重的逻辑可以再审核的时候认为控制，避免出现新的卡片无法显示在流上的情况。
+		/** @var MCard $card */
+		if ($card->status === CARD_STATUS_DELETED) {
+			return;
+		}
+		$newItem = new MDiscoverFlow();
+		$newItem->type = 'card';
+		$newItem->contentId = $card->id;
+		$newItem->userId = $card->userId;
+		$newItem->status = DISCOVER_ITEM_NEW; // 初始状态，等待审核
+		$newItem->createTime = $card->createTime;
+		$newItem->insert();
+	}
+
+	public static function removeCardFromDiscoverFlow($cardId, $userId) {
+		$query = new MDiscoverFlow();
+		$query->status = DISCOVER_ITEM_USER_DELETED;
+		$query->modify("type = 'card' and content_id = {$cardId} and user_id = {$userId}", '');
+	}
+
+	// 修改之后的卡片应该重新审核
+	public static function resetCardStatusInDiscoverFlow($cardId, $userId) {
+		$query = new MDiscoverFlow();
+		$query->status = DISCOVER_ITEM_NEW;
+		$query->modify("type = 'card' and content_id = {$cardId} and user_id = {$userId}", '');
 	}
 }
 
@@ -914,6 +1002,8 @@ class MUserBook extends Data {
  * @property mixed publisher
  * @property mixed trueIsbn
  * @property mixed summary
+ * @property mixed doubanAverage
+ * @property mixed doubanRaters
  */
 class MBook extends Data {
 	public function __construct() {
@@ -921,13 +1011,15 @@ class MBook extends Data {
 			'key'     => 'isbn',
 			'table'   => 'bocha_book',
 			'columns' => [
-				'isbn'      => 'isbn',
-				'title'     => 'title',
-				'author'    => 'author',
-				'cover'     => 'cover',
-				'publisher' => 'publisher',
-				'trueIsbn'  => 'true_isbn',
-				'summary'   => 'summary',
+				'isbn'          => 'isbn',
+				'title'         => 'title',
+				'author'        => 'author',
+				'cover'         => 'cover',
+				'publisher'     => 'publisher',
+				'trueIsbn'      => 'true_isbn',
+				'summary'       => 'summary',
+				'doubanAverage' => 'douban_average',
+				'doubanRaters'  => 'douban_raters',
 			]
 		];
 		parent::init($options);
@@ -937,22 +1029,27 @@ class MBook extends Data {
 		$this->isbn = $doubanBook->id;
 		/** @var MBook $one */
 		$one = $this->findOne();
+
+		$this->title = $doubanBook->title;
+		$this->author = json_stringify($doubanBook->author);
+		$this->cover = $doubanBook->image;
+		$this->publisher = $doubanBook->publisher;
+		$this->trueIsbn = empty($doubanBook->isbn13) ? 'fake_isbn' : $doubanBook->isbn13;
+		$this->summary = $doubanBook->summary;
+		$this->doubanAverage = 0;
+		$this->doubanRaters = 0;
+		if (!empty($doubanBook->rating)) {
+			if (is_numeric($doubanBook->rating->average)) {
+				$this->doubanAverage = $doubanBook->rating->average;
+			}
+			if (is_numeric($doubanBook->rating->numRaters)) {
+				$this->doubanRaters = $doubanBook->rating->numRaters;
+			}
+		}
 		if ($one === false) {
-			$this->title = $doubanBook->title;
-			$this->author = json_stringify($doubanBook->author);
-			$this->cover = $doubanBook->image;
-			$this->publisher = $doubanBook->publisher;
-			$this->trueIsbn = empty($doubanBook->isbn13) ? 'fake_isbn' : $doubanBook->isbn13;
-			$this->summary = $doubanBook->summary;
 			$this->insert();
 		} else {
-			$one->title = $doubanBook->title;
-			$one->author = json_stringify($doubanBook->author);
-			$one->cover = $doubanBook->image;
-			$one->publisher = $doubanBook->publisher;
-			$one->trueIsbn = empty($doubanBook->isbn13) ? 'fake_isbn' : $doubanBook->isbn13;
-			$one->summary = $doubanBook->summary;
-			$one->update();
+			$this->update();
 		}
 	}
 }
@@ -1191,6 +1288,33 @@ class MCardPulp extends Data {
 				'pulpRate'   => 'pulp_rate',
 				'pulpLabel'  => 'pulp_label',
 				'pulpReview' => 'pulp_review'
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
+ * Class MDiscoverFlow
+ * @property mixed id
+ * @property mixed type
+ * @property mixed contentId
+ * @property mixed userId
+ * @property mixed status
+ * @property mixed createTime
+ */
+class MDiscoverFlow extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_discover_flow',
+			'columns' => [
+				'id'         => '_id',
+				'type'       => 'type',
+				'contentId'  => 'content_id',
+				'userId'     => 'user_id',
+				'status'     => 'status',
+				'createTime' => 'create_time',
 			]
 		];
 		parent::init($options);

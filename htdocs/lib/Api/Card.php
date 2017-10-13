@@ -11,6 +11,7 @@ use Graph\MBook;
 use Graph\MCard;
 use Graph\MCardApproval;
 use Graph\MCardPulp;
+use Graph\MDiscoverFlow;
 use Graph\MUser;
 use Graph\MUserBook;
 
@@ -94,12 +95,20 @@ class Card extends ApiBase {
 		$query->readCount = 0;
 
 		$insertId = $query->insert();
+
+		if ($insertId > 0) {
+			$query->id = $insertId;
+			// 将卡片加入发现流的待审核状态
+			Graph::addNewCardToDiscoverFlow($query);
+		}
+
 		return $insertId;
 	}
 
 	public function modify($cardId, $content, $title, $picUrl, $picModified) {
 		\Visitor::instance()->checkAuth();
 
+		$userId = \Visitor::instance()->getUserId();
 		if (!empty($picUrl)) {
 			// 鉴黄
 			$url = $picUrl . '?pulp';
@@ -115,7 +124,6 @@ class Card extends ApiBase {
 				$picIsNormal = false;
 			}
 
-			$userId = \Visitor::instance()->getUserId();
 			$query = new MCardPulp();
 			$query->userId = $userId;
 			$query->title = $title;
@@ -151,6 +159,9 @@ class Card extends ApiBase {
 		}
 		$card->update();
 
+		// 将卡片重新加入发现流的待审核状态
+		Graph::resetCardStatusInDiscoverFlow($cardId, $userId);
+
 		return 'ok';
 	}
 
@@ -162,6 +173,10 @@ class Card extends ApiBase {
 		$query = new MCard();
 		$query->status = CARD_STATUS_DELETED;
 		$query->modify("_id = {$cardId} and user_id = {$userId}", '');
+
+		// 将卡片从发现流中删除
+		Graph::removeCardFromDiscoverFlow($cardId, $userId);
+
 		return 'ok';
 	}
 
@@ -410,169 +425,89 @@ class Card extends ApiBase {
 
 		if ($isTop) {
 			// 表示下拉刷新,数据要放在顶部,直接取最新的数据发下去
-			$condition = "status = '0'";
+			$condition = "status = '1'"; // 状态 1 表示审核通过的内容
 		} else {
-			$condition = "status = '0' and create_time < {$cursor}";
+			$condition = "status = '1' and create_time < {$cursor}";
 		}
 
-		// 先取50条数据出来
-		$query = new MCard();
-		$cardList = $query->query($condition,
-								  'ORDER BY create_time DESC LIMIT 0,50');
-		
-		// 去重逻辑:1.同一个用户不能超过五条
-		$filteredList = [];
-		$userMap = [];
-		foreach ($cardList as $card) {
-			/** @var MCard $card */
-			$userId = $card->userId;
-			if (!isset($userMap[$userId])) {
-				$userMap[$userId] = 1;
-			} else if ($userMap[$userId] < 5) {
-				$userMap[$userId] = $userMap[$userId] + 1;
-			} else {
-				continue;
-			}
-			// 一次最多返回15条,取50条去重应该很大概率返回的是15条数据
-			if (count($filteredList) >= 15) {
-				break;
-			}
-			$filteredList[] = $card;
-		}
+		// 一次请求发 20 条数据
+		$query = new MDiscoverFlow();
+		$discoverList = $query->query($condition,
+								  'ORDER BY create_time DESC LIMIT 0,20');
 
-		$resultList =  array_map(function($card) {
+		$resultList = [];
+		foreach ($discoverList as $item) {
+			/** @var MDiscoverFlow $item */
 			/** @var MUser $user */
-			$user = Graph::findUserById($card->userId);
-			if ($user === false) {
-				return false;
+			$user = Graph::findUserById($item->userId);
+			if ($item->type === 'card') {
+				/** @var MCard $card */
+				$card = Graph::findCardById($item->contentId);
+				if ($card !== false && $card->status == CARD_STATUS_NORMAL) {
+					$resultList[] = [
+						'type' => 'card',
+						'data' => [
+							'id'            => $card->id,
+							'user'          => [
+								'id'       => $user->id,
+								'nickname' => $user->nickname,
+								'avatar'   => $user->avatar,
+							],
+							'title'         => $card->title,
+							'content'       => mb_substr($card->content, 0, 48, 'utf-8'),
+							'picUrl'        => getListThumbnailUrl($card->picUrl),
+							'createTime'    => $card->createTime,
+							'readCount'     => intval($card->readCount),
+							'approvalCount' => Graph::getCardApprovalCount($card->id),
+						],
+					];
+				}
+			} else if ($item->type === 'book') {
+				/** @var MUserBook $userBook */
+				$userBook = Graph::findUserBook($item->contentId, $item->userId);
+				if ($userBook !== false) {
+					/** @var MBook $book */
+					$book = Graph::findBook($item->contentId);
+					$resultList[] = [
+						'type' => 'book',
+						'data' => [
+							'isbn'         => $book->isbn,
+							'user'       => [
+								'id'       => $user->id,
+								'nickname' => $user->nickname,
+								'avatar'   => $user->avatar,
+							],
+							'title'      => $book->title,
+							'author'     => self::parseAuthor($book->author),
+							'cover'      => $book->cover,
+							'publisher'  => $book->publisher,
+							'summary'    => $book->summary,
+							'createTime' => $userBook->createTime,
+						],
+					];
+				}
 			}
-
-			/** @var MCard $card */
-			return [
-				'type' => 'card',
-				'data' => [
-					'id'            => $card->id,
-					'user'          => [
-						'id'       => $user->id,
-						'nickname' => $user->nickname,
-						'avatar'   => $user->avatar,
-					],
-					'title'         => $card->title,
-					'content'       => mb_substr($card->content, 0, 48, 'utf-8'),
-					'picUrl'        => getListThumbnailUrl($card->picUrl),
-					'createTime'    => $card->createTime,
-					'readCount'     => intval($card->readCount),
-					'approvalCount' => Graph::getCardApprovalCount($card->id),
-				],
-			];
-		}, $filteredList);
-
-		$resultList = array_filter($resultList, function($item) {
-			return $item !== false;
-		});
+		}
 
 		$topCursor = self::getCursor($resultList, true);
 		$bottomCursor = self::getCursor($resultList, false);
 
-		// 拉最新图书
-
-		$bookCursor = intval($bookCursor);
-		if ($bookCursor < 0) {
-			$bookCursor = 0;
-		}
-
-		// 老数据一律不要了
-		if ($isTop) {
-			$bookCondition = 'create_time > 0';
-		} else {
-			$bookCondition = "create_time > 0 and create_time < {$bookCursor}";
-		}
-
-		// 先取20条数据出来
-		$queryBook = new MUserBook();
-		$bookList = $queryBook->query($bookCondition,
-								  'ORDER BY create_time DESC LIMIT 0,20');
-
-		// 去重逻辑:1.同一个用户不能超过2条
-		$filteredBookList = [];
-		$bookUserMap = [];
-		foreach ($bookList as $book) {
-			/** @var MUserBook $book */
-			$userId = $book->userId;
-			if (!isset($bookUserMap[$userId])) {
-				$bookUserMap[$userId] = 1;
-			} else if ($bookUserMap[$userId] < 2) {
-				$bookUserMap[$userId] = $bookUserMap[$userId] + 1;
-			} else {
-				continue;
-			}
-			// 一次最多返回5条,取20条去重应该很大概率返回的是5条数据
-			if (count($filteredBookList) >= 5) {
-				break;
-			}
-			$filteredBookList[] = $book;
-		}
-
-		$bookResultList =  array_map(function($book) {
-			/** @var MUserBook $book */
-			/** @var MBook $bookData */
-			$bookData = Graph::findBook($book->isbn);
-			if ($bookData === false) {
-				return false;
-			}
-
-			/** @var MUser $user */
-			$user = Graph::findUserById($book->userId);
-			if ($user === false) {
-				return false;
-			}
-
-			return [
-				'type' => 'book',
-				'data' => [
-					'isbn'         => $bookData->isbn,
-					'user'       => [
-						'id'       => $user->id,
-						'nickname' => $user->nickname,
-						'avatar'   => $user->avatar,
-					],
-					'title'      => $bookData->title,
-					'author'     => self::parseAuthor($bookData->author),
-					'cover'      => $bookData->cover,
-					'publisher'  => $bookData->publisher,
-					'summary'    => $bookData->summary,
-					'createTime' => $book->createTime,
-				],
-			];
-		}, $filteredBookList);
-
-		$bookResultList = array_filter($bookResultList, function($item) {
-			return $item !== false;
-		});
-
-		$bookTopCursor = self::getCursor($bookResultList, true);
-		$bookBottomCursor = self::getCursor($bookResultList, false);
-
-		$finalList = array_merge($resultList, $bookResultList);
-		usort($finalList, function($a, $b) {
-			return $a['data']['createTime'] < $b['data']['createTime'] ? 1 : -1;
-		});
-
 		$banners = [];
 		if ($isTop) {
 			// 活动置顶
-			$banners[] =  $this->createActivityItem();
+			$banners[] =  $this->createNewBookItem('27068817');
 			$banners[] = $this->createCardItem('54');
+			//$banners[] =  $this->createActivityItem();
 			$banners[] =  $this->createNewBookItem('27069925');
 		}
 
 		return [
 			'banner'           => $banners,
-			'list'             => $finalList,
+			'list'             => $resultList,
 			'topCursor'        => $topCursor,
 			'bottomCursor'     => $bottomCursor,
-			'bookTopCursor'    => $bookTopCursor,
-			'bookBottomCursor' => $bookBottomCursor,
+			'bookTopCursor'    => -1, // 结构改了，暂时没有用了
+			'bookBottomCursor' => -1,
 			'showPost'         => true,
 		];
 	}
