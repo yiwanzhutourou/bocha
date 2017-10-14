@@ -40,22 +40,27 @@ class Search extends ApiBase {
 					$distance = getDistance($latitude, $longitude,
 											$address->latitude, $address->longitude);
 					return [
-						'distance'  => $distance,
-						'distanceText'  => getDistanceString($distance),
-						'latitude'  => $address->latitude,
-						'longitude' => $address->longitude,
-						'name'      => $address->name,
-						'detail'    => $address->detail
+						'distance'      => $distance,
+						'latitude'      => $address->latitude,
+						'longitude'     => $address->longitude,
+						'name'          => $address->name,
+						'detail'        => $address->detail,
+						'city'          => json_decode($address->city),
 					];
 				}, $user->getAddressList());
 				usort($addresses, function($a, $b) {
 					return ($a['distance'] > $b['distance']) ? 1 : -1;
 				});
+
+				$userAddress = array_values($addresses)[0];
+				$distanceText = \Visitor::instance()->isMe($userId) ? ''
+					: (empty($userAddress) ? '' : getDistanceString($userAddress['distance']));
 				return [
-					'id'          => $user->id,
-					'nickname'    => $user->nickname,
-					'avatar'      => $user->avatar,
-					'address' => array_values($addresses)[0]
+					'id'           => $user->id,
+					'nickname'     => $user->nickname,
+					'avatar'       => $user->avatar,
+					'address'      => $userAddress,
+					'distanceText' => $distanceText,
 				];
 			}, $userBook->find());
 			// filter:距离大于10公里的不返回
@@ -107,7 +112,6 @@ class Search extends ApiBase {
 										$address->latitude, $address->longitude);
 				return [
 					'distance'  => $distance,
-					'distanceText'  => getDistanceString($distance),
 					'latitude'  => $address->latitude,
 					'longitude' => $address->longitude,
 					'name'      => $address->name,
@@ -119,12 +123,16 @@ class Search extends ApiBase {
 				return ($a['distance'] > $b['distance']) ? 1 : -1;
 			});
 			$bookCount = $user->getBookListCount();
+			$userAddress = array_values($addresses)[0];
+			$distanceText = \Visitor::instance()->isMe($user->id) ? ''
+				: (empty($userAddress) ? '' : getDistanceString($userAddress['distance']));
 			return [
 				'id'          => $user->id,
 				'nickname'    => $user->nickname,
 				'avatar'      => $user->avatar,
-				'address' => array_values($addresses)[0],
-				'bookCount' => $bookCount
+				'address'     => $userAddress,
+				'bookCount'   => $bookCount,
+				'distanceText' => $distanceText,
 			];
 		}, $users);
 		return $result;

@@ -30,11 +30,13 @@ function getDistanceString($distance) {
 	if ($distance < 0.1) {
 		return "小于 100 米";
 	} else if ($distance < 1.0) {
-		return "小于 1 千米";
-	} else if ($distance < 10.0) {
-		return $distance . " 千米";
+		$distanceInMeter = intval($distance * 1000);
+		return "{$distanceInMeter} 米";
+	} else if ($distance < 30.0) {
+		$distanceInKm = intval($distance);
+		return "{$distanceInKm} 千米";
 	} else {
-		return "大于 10 千米";
+		return "大于 30 千米";
 	}
 }
 
@@ -73,7 +75,7 @@ function getDistance($lat1, $lng1, $lat2, $lng2) {
 	$stepTwo = 2 * asin(min(1, sqrt($stepOne)));
 	$calculatedDistance = $earthRadius * $stepTwo;
 
-	return round($calculatedDistance, 1);
+	return round($calculatedDistance, 3);
 }
 
 /**

@@ -375,14 +375,13 @@ class Card extends ApiBase {
 		}, $cardList);
 	}
 
-	public function getBookCards($isbn, $page = 0, $count = 5) {
+	public function getBookPageData($isbn, $latitude = 31.181471, $longitude = 121.438378) {
 
-		$offset = $page * $count;
 		$query = new MCard();
 		$cardList = $query->query("status = '0' and book_isbn = '{$isbn}'",
-				"ORDER BY create_time DESC LIMIT {$offset},{$count}");
+				"ORDER BY create_time DESC LIMIT 0,5");
 
-		$resultList = array_map(function($card) {
+		$cardList = array_map(function($card) {
 			/** @var MUser $user */
 			$user = Graph::findUserById($card->userId);
 			if ($user === false) {
@@ -406,9 +405,110 @@ class Card extends ApiBase {
 			];
 		}, $cardList);
 
-		return array_filter($resultList, function($item) {
+		$cardList = array_filter($cardList, function($item) {
 			return $item !== false;
 		});
+
+		$userList = [];
+		$userBook = new MUserBook();
+		$userBook->isbn = $isbn;
+		$userBookList = $userBook->find();
+		if ($userBookList !== false) {
+			$userList = array_map(function($userBookItem) use ($longitude, $latitude) {
+				/** @var MUserBook $userBookItem */
+				$userId = $userBookItem->userId;
+				/** @var MUser $user */
+				$user = Graph::findUserById($userId);
+				if ($user === false) {
+					return false;
+				}
+				$addressList = array_map(function($address) use ($longitude, $latitude) {
+
+					$distance = getDistance($latitude, $longitude,
+											$address->latitude, $address->longitude);
+					return [
+						'distance'      => $distance,
+						'latitude'      => $address->latitude,
+						'longitude'     => $address->longitude,
+						'name'          => $address->name,
+						'detail'        => $address->detail,
+						'city'          => json_decode($address->city),
+					];
+				}, $user->getAddressList());
+				usort($addressList, function($a, $b) {
+					return ($a['distance'] > $b['distance']) ? 1 : -1;
+				});
+
+				$userAddress = array_values($addressList)[0];
+				$distanceText = \Visitor::instance()->isMe($userId) ? ''
+									: (empty($userAddress) ? '' : getDistanceString($userAddress['distance']));
+
+				return [
+					'id'           => $user->id,
+					'nickname'     => $user->nickname,
+					'avatar'       => $user->avatar,
+					'address'      => $userAddress,
+					'distanceText' => $distanceText,
+				];
+			}, $userBookList);
+
+			$userList = array_filter($userList, function($item) {
+				return $item !== false;
+			});
+
+			// sort: 距离升序排列
+			usort($userList, function($a, $b) {
+				if (empty($a['address'])) {
+					return 1;
+				}
+				if (empty($b['address'])) {
+					return -1;
+				}
+				return ($a['address']['distance'] > $b['address']['distance']) ? 1 : -1;
+			});
+		}
+
+		return [
+			'users' => $userList,
+			'cards' => $cardList,
+		];
+	}
+
+	public function getBookCards($isbn, $page = 0, $count = 5) {
+
+		$offset = $page * $count;
+		$query = new MCard();
+		$cardList = $query->query("status = '0' and book_isbn = '{$isbn}'",
+								  "ORDER BY create_time DESC LIMIT {$offset},{$count}");
+
+		$cardList = array_map(function($card) {
+			/** @var MUser $user */
+			$user = Graph::findUserById($card->userId);
+			if ($user === false) {
+				return false;
+			}
+
+			/** @var MCard $card */
+			return [
+				'id'         => $card->id,
+				'user'       => [
+					'id'       => $user->id,
+					'nickname' => $user->nickname,
+					'avatar'   => $user->avatar,
+				],
+				'title'      => $card->title,
+				'content'    => mb_substr($card->content, 0, 48, 'utf-8'),
+				'picUrl'     => getListThumbnailUrl($card->picUrl),
+				'createTime' => $card->createTime,
+				'readCount'     => intval($card->readCount),
+				'approvalCount' => Graph::getCardApprovalCount($card->id),
+			];
+		}, $cardList);
+
+		$cardList = array_filter($cardList, function($item) {
+			return $item !== false;
+		});
+		return $cardList;
 	}
 
 	/*
