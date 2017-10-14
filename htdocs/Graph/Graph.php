@@ -233,6 +233,34 @@ class Graph {
 		self::insertNewMessage($from, $to, $message, MSG_TYPE_SYSTEM, $timestamp, $extra);
 	}
 
+	public static function sendNewPostMessage($card, $nickname) {
+		$extra = [
+			'router' => 'card',
+			'extra'  => $card->id,
+		];
+
+		$adminIds = ['34', '35'];
+		foreach ($adminIds as $adminId) {
+			Graph::sendSystemMessage(BOCHA_SYSTEM_USER_ID, $adminId,
+									 "[系统消息] 用户 {$nickname} 发布了一个新的读书卡片: {$card->title}。",
+									 json_stringify($extra));
+		}
+	}
+
+	public static function sendRepostMessage($card, $nickname) {
+		$extra = [
+			'router' => 'card',
+			'extra'  => $card->id,
+		];
+
+		$adminIds = ['34', '35'];
+		foreach ($adminIds as $adminId) {
+			Graph::sendSystemMessage(BOCHA_SYSTEM_USER_ID, $adminId,
+									 "[系统消息] 用户 {$nickname} 修改了一个读书卡片: {$card->title}。",
+									 json_stringify($extra));
+		}
+	}
+
 	public static function insertNewMessage($from, $to, $message, $msgType, $timestamp, $extra) {
 		$query = new MChatMessage();
 		$query->user1 = $from;

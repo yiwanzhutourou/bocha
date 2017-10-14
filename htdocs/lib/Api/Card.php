@@ -100,6 +100,9 @@ class Card extends ApiBase {
 			$query->id = $insertId;
 			// 将卡片加入发现流的待审核状态
 			Graph::addNewCardToDiscoverFlow($query);
+			
+			// 给管理员发一条消息提醒审核(=.=目前就是给自己人发一下系统消息,等管理后台做出来再下掉)
+			Graph::sendNewPostMessage($query, \Visitor::instance()->getUser()->nickname);
 		}
 
 		return $insertId;
@@ -161,6 +164,8 @@ class Card extends ApiBase {
 
 		// 将卡片重新加入发现流的待审核状态
 		Graph::resetCardStatusInDiscoverFlow($cardId, $userId);
+		// 给管理员发一条消息提醒审核(=.=目前就是给自己人发一下系统消息,等管理后台做出来再下掉)
+		Graph::sendNewPostMessage($card, \Visitor::instance()->getUser()->nickname);
 
 		return 'ok';
 	}
@@ -298,7 +303,7 @@ class Card extends ApiBase {
 
 		/** @var MCard $card */
 		$card = $query->findOne();
-		if ($card === false || $card->status === CARD_STATUS_DELETED) {
+		if ($card === false || intval($card->status) === CARD_STATUS_DELETED) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '读书卡片已被删除');
 		} else {
 			/** @var MUser $cardUser */
