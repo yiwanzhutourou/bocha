@@ -79,7 +79,8 @@ class Map extends ApiBase {
 						'latitude'  => $address->latitude,
 						'longitude' => $address->longitude,
 						'name'      => $address->name,
-						'detail'    => $address->detail
+						'detail'    => $address->detail,
+						'city'      => json_decode($address->city)
 					],
 					'bookCount' => $bookCount
 				];
