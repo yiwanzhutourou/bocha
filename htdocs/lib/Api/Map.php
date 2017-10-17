@@ -16,8 +16,8 @@ class Map extends ApiBase {
 	const LAT_DISTANCE = 111.7;
 	const LNG_DISTANCE = 85.567;
 
-	// 需要进行搜索的附近距离，默认5公里
-	const NEAR_DISTANCE = 5;
+	// 需要进行搜索的附近距离，默认值会根据数据多少来调整
+	const NEAR_DISTANCE = 10;
 
 	public function getMarkers() {
 		$userAddress = new MUserAddress();
@@ -31,12 +31,12 @@ class Map extends ApiBase {
 	}
 
 	/**
-	 * 根据经纬度获取周围的5公里以内的点
+	 * 根据经纬度获取周围的一定公里以内的点
 	 */
-	public function getMarkersNearBy($lat, $lng, $nearDistance = self::NEAR_DISTANCE) {
+	public function getMarkersNearBy($lat, $lng, $distance = self::NEAR_DISTANCE) {
 
-		$latOffset = $nearDistance / self::LAT_DISTANCE;
-		$lngOffset = $nearDistance / self::LNG_DISTANCE;
+		$latOffset = $distance / self::LAT_DISTANCE;
+		$lngOffset = $distance / self::LNG_DISTANCE;
 
 		$minLat = $lat - $latOffset;
 		$maxLat = $lat + $latOffset;
@@ -47,12 +47,13 @@ class Map extends ApiBase {
 		$query = 'latitude > ' . $minLat . ' and latitude < ' . $maxLat;
 		$query = $query . ' and longitude > ' . $minLng . ' and longitude < ' . $maxLng;
 		return array_map(function($address) {
+			/** @var MUser $user */
 			$user = Graph::findUserById($address->userId);
 			return [
-				'id' 				=> $address->userId,
-				'title'			=> $user->nickname,
-				'latitude' 	=> $address->latitude,
-				'longitude'	=> $address->longitude,
+				'id'        => $address->userId,
+				'title'     => $user->nickname,
+				'latitude'  => $address->latitude,
+				'longitude' => $address->longitude,
 			];
 		}, $userAddress->query($query));
 	}
