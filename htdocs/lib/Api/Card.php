@@ -474,8 +474,9 @@ class Card extends ApiBase {
 		}
 
 		return [
-			'users' => $userList,
-			'cards' => $cardList,
+			'users'   => $userList,
+			'cards'   => $cardList,
+			'hasBook' => \Visitor::instance()->hasBook($isbn) ? 1 : 0,
 		];
 	}
 

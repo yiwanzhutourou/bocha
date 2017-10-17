@@ -4,8 +4,8 @@
  * 2017/5/28
  */
 
-use \Graph\MUser;
-use \Api\Exception;
+use Api\Exception;
+use Graph\MUser;
 
 class Visitor {
 
@@ -46,6 +46,15 @@ class Visitor {
 
 	public function isMe($userId) {
 		return $this->user != null && $this->user->id === $userId;
+	}
+
+	public function hasBook($isbn) {
+		if ($this->user != null) {
+			$userId = $this->user->id;
+			return \Graph\Graph::hasBook($userId, $isbn);
+		}
+
+		return false;
 	}
 
 	public function isLogin() {

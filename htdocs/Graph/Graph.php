@@ -465,6 +465,13 @@ class Graph {
 		$query->status = DISCOVER_ITEM_NEW;
 		$query->modify("type = 'card' and content_id = {$cardId} and user_id = {$userId}", '');
 	}
+
+	public static function hasBook($userId, $isbn) {
+		$userBook = new MUserBook();
+		$userBook->userId = $userId;
+		$userBook->isbn = $isbn;
+		return $userBook->findOne() !== false;
+	}
 }
 
 class DataConnection {
