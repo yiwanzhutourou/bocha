@@ -286,25 +286,25 @@ class User extends ApiBase {
 		$cardCount = $user->getCardListCount();
 
 		// 图书列表
-		$userBooks = $one->getBooks(3);
+//		$userBooks = $one->getBooks(3);
 		$books = [];
-		/** @var MUserBook $userBook */
-		foreach ($userBooks as $userBook) {
-			$book = new MBook();
-			$book->isbn = $userBook->isbn;
-			/** @var MBook $bookOne */
-			$bookOne = $book->findOne();
-			if ($bookOne !== false) {
-				$books[] = [
-					'isbn'      => $bookOne->isbn,
-					'title'     => $bookOne->title,
-					'author'    => json_decode($bookOne->author),
-					'cover'     => $bookOne->cover,
-					'publisher' => $bookOne->publisher,
-					'canBorrow' => false,
-				];
-			}
-		}
+//		/** @var MUserBook $userBook */
+//		foreach ($userBooks as $userBook) {
+//			$book = new MBook();
+//			$book->isbn = $userBook->isbn;
+//			/** @var MBook $bookOne */
+//			$bookOne = $book->findOne();
+//			if ($bookOne !== false) {
+//				$books[] = [
+//					'isbn'      => $bookOne->isbn,
+//					'title'     => $bookOne->title,
+//					'author'    => json_decode($bookOne->author),
+//					'cover'     => $bookOne->cover,
+//					'publisher' => $bookOne->publisher,
+//					'canBorrow' => false,
+//				];
+//			}
+//		}
 		$bookCount = $one->getBookListCount();
 
 		$borrowBooks = array_map(function($userBook) use ($isMe) {
