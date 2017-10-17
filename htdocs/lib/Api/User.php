@@ -951,11 +951,71 @@ class User extends ApiBase {
 		return $result;
 	}
 
+	public function getUserFollowings($userId) {
+		$followings = Graph::getFollowings($userId);
+		$result = [];
+		if ($followings !== false) {
+			$result = array_map(function($following) {
+				/** @var MFollow $following */
+				$toId = $following->toId;
+				/** @var MUser $user */
+				$user = Graph::findUserById($toId);
+				$addresses = array_map(function($address) {
+					return [
+						'name'      => $address->name,
+						'detail'    => $address->detail,
+						'city'      => json_decode($address->city),
+					];
+				}, $user->getAddressList());
+				$bookCount = $user->getBookListCount();
+				return [
+					'id'        => $user->id,
+					'nickname'  => $user->nickname,
+					'avatar'    => $user->avatar,
+					'address'   => $addresses,
+					'bookCount' => $bookCount
+				];
+			}, $followings);
+		}
+
+		return $result;
+	}
+
 	public function getMyFollowers() {
 		$this->checkAuth();
 
 		$selfId = \Visitor::instance()->getUser()->id;
 		$followers = Graph::getFollowers($selfId);
+		$result = [];
+		if ($followers !== false) {
+			$result = array_map(function($follower) {
+				/** @var MFollow $follower */
+				$fromId = $follower->fromId;
+				/** @var MUser $user */
+				$user = Graph::findUserById($fromId);
+				$addresses = array_map(function($address) {
+					return [
+						'name'      => $address->name,
+						'detail'    => $address->detail,
+						'city'      => json_decode($address->city),
+					];
+				}, $user->getAddressList());
+				$bookCount = $user->getBookListCount();
+				return [
+					'id'        => $user->id,
+					'nickname'  => $user->nickname,
+					'avatar'    => $user->avatar,
+					'address'   => $addresses,
+					'bookCount' => $bookCount
+				];
+			}, $followers);
+		}
+
+		return $result;
+	}
+
+	public function getUserFollowers($userId) {
+		$followers = Graph::getFollowers($userId);
 		$result = [];
 		if ($followers !== false) {
 			$result = array_map(function($follower) {
