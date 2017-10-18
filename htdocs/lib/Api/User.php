@@ -1085,6 +1085,19 @@ class User extends ApiBase {
 		throw new Exception(Exception::VERIFY_CODE_EXPIRED, '验证码错误或者已经过期,请重新发送验证码~');
 	}
 
+	public function getMyQRCode() {
+		$this->checkAuth();
+
+		$user = \Visitor::instance()->getUser();
+		$userId = $user->id;
+
+		return [
+			'avatar'   => $user->avatar,
+			'nickname' => $user->nickname,
+			'qrToken'  => "bocha://youdushufang/u/{$userId}",
+		];
+	}
+
 	private function sendDeclineBorrowBookMessage(
 		$toUserOpenId, $formId, $bookTitle, $hoster, $date) {
 		return $this->sendWxTemplateMessage(
