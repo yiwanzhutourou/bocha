@@ -704,7 +704,7 @@ class User extends ApiBase {
 			return [
 				'requestId'   => $one->id,
 				'userId'    => $toUserId,
-				'user'      => $toUser->nickname . '的书房',
+				'user'      => $toUser->nickname,
 				'bookTitle' => $one->bookTitle,
 				'bookCover' => $one->bookCover,
 				'date'      => $one->date,
@@ -783,9 +783,6 @@ class User extends ApiBase {
 		$list = $history->find();
 		if (!empty($list)) {
 			$one = current($list);
-		}
-		if (isset($one) && $one->date === date('Y-m-d')) {
-			throw new Exception(Exception::REQUEST_TOO_MUCH, '你今天已经在他的书房里借阅了一本书~');
 		}
 
 		// 这个当时为什么只存了个日期字符串,算了将错就错吧
