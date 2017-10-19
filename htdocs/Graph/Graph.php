@@ -28,6 +28,12 @@ define ('DISCOVER_ITEM_APPROVED', 1);
 define ('DISCOVER_ITEM_DENIED', 2);
 define ('DISCOVER_ITEM_USER_DELETED', 3);
 
+define ('BORROW_STATUS_NORMAL', 0);
+define ('BORROW_STATUS_ACCEPTED', 1);
+define ('BORROW_STATUS_DECLINED', 2);
+define ('BORROW_STATUS_RETURNING', 3);
+define ('BORROW_STATUS_RETURNED', 3);
+
 class Graph {
 
 	/**
@@ -471,6 +477,24 @@ class Graph {
 		$userBook->userId = $userId;
 		$userBook->isbn = $isbn;
 		return $userBook->findOne() !== false;
+	}
+	
+	public static function borrow($from, $to, $isbn) {
+		$request = new MBorrowRequest();
+		$request->from = $from;
+		$request->to = $to;
+		$request->bookIsbn = $isbn;
+		$request->createTime = strtotime('now');
+		$request->status = BORROW_STATUS_NORMAL;
+		return $request->insert();
+	}
+
+	public static function getBorrowRequest($from, $to, $isbn) {
+		$request = new MBorrowRequest();
+		$request->from = $from;
+		$request->to = $to;
+		$request->bookIsbn = $isbn;
+		return $request->findOne();
 	}
 }
 
@@ -1010,6 +1034,8 @@ class MUserAddress extends Data {
  * @property mixed isbn
  * @property mixed createTime
  * @property mixed canBeBorrowed
+ * @property mixed totalCount
+ * @property mixed leftCount
  */
 class MUserBook extends Data {
 	public function __construct() {
@@ -1022,6 +1048,8 @@ class MUserBook extends Data {
 				'isbn'          => 'isbn',
 				'createTime'    => 'create_time',
 				'canBeBorrowed' => 'can_be_borrowed',
+				'totalCount'         => 'count',
+				'leftCount'     => 'left_count',
 			]
 		];
 		parent::init($options);
@@ -1089,6 +1117,7 @@ class MBook extends Data {
 	}
 }
 
+// 用于预约,有些字段用不到了
 /**
  * Class MBorrowHistory
  * @property mixed id
@@ -1116,6 +1145,34 @@ class MBorrowHistory extends Data {
 				'date'      => 'date',
 				'requestStatus'    => 'status',
 				'formId'    => 'form_id'
+			]
+		];
+		parent::init($options);
+	}
+}
+
+// 用于借阅
+/**
+ * Class MBorrowRequest
+ * @property mixed id
+ * @property mixed from
+ * @property mixed to
+ * @property mixed bookIsbn
+ * @property mixed createTime
+ * @property mixed status
+ */
+class MBorrowRequest extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_borrow_request',
+			'columns' => [
+				'id'         => '_id',
+				'from'       => 'from_user',
+				'to'         => 'to_user',
+				'bookIsbn'   => 'book_isbn',
+				'createTime' => 'create_time',
+				'status'     => 'status',
 			]
 		];
 		parent::init($options);

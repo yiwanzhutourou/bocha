@@ -535,6 +535,8 @@ class User extends ApiBase {
 		} else {
 			$userBook->createTime = strtotime('now');
 			$userBook->canBeBorrowed = BOOK_CAN_BE_BORROWED;
+			$userBook->totalCount = 1;
+			$userBook->leftCount = 1; // 暂时默认都是 1 本书
 			if ($userBook->insert() > 0) {
 				// 检查并添加新图书到发现流
 				Graph::addNewBookToDiscoverFlow($book, $userBook);
