@@ -138,7 +138,7 @@ class Book extends ApiBase {
 			throw new Exception(Exception::BAD_REQUEST, '这本书似乎不是闲置图书哦');
 		}
 
-		if ($userBook->leftCount === 0) {
+		if (intval($userBook->leftCount) <= 0) {
 			throw new Exception(Exception::BAD_REQUEST, '这本书似乎已经被借出去了');
 		}
 
@@ -185,6 +185,30 @@ class Book extends ApiBase {
 		return 'ok';
 	}
 
+	public function decline($id, $from, $isbn) {
+		\Visitor::instance()->checkAuth();
+
+		$selfId = \Visitor::instance()->getUserId();
+
+		// 不可能发生,简单防一下
+		if ($from === $selfId) {
+			throw new Exception(Exception::BAD_REQUEST , '不可以处理自己的请求哦~');
+		}
+
+		/** @var MBorrowRequest $borrowRequest */
+		$borrowRequest = Graph::getBorrowRequest($id, $from, $selfId, $isbn);
+
+		if ($borrowRequest === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '借阅请求不存在');
+		}
+
+		$borrowRequest->status = BORROW_STATUS_DECLINED;
+		$borrowRequest->update();
+
+		return 'ok';
+	}
+
+
 	public function markBookReturn($id, $from, $isbn) {
 		\Visitor::instance()->checkAuth();
 
@@ -207,29 +231,6 @@ class Book extends ApiBase {
 			// 书还回来了,库存加一
 			Graph::addUserBookCountByOne($isbn, $selfId);
 		}
-
-		return 'ok';
-	}
-
-	public function declineReturn($id, $from, $isbn) {
-		\Visitor::instance()->checkAuth();
-
-		$selfId = \Visitor::instance()->getUserId();
-
-		// 不可能发生,简单防一下
-		if ($from === $selfId) {
-			throw new Exception(Exception::BAD_REQUEST , '不可以处理自己的请求哦~');
-		}
-
-		/** @var MBorrowRequest $borrowRequest */
-		$borrowRequest = Graph::getBorrowRequest($id, $from, $selfId, $isbn);
-
-		if ($borrowRequest === false) {
-			throw new Exception(Exception::RESOURCE_NOT_FOUND, '借阅请求不存在');
-		}
-
-		$borrowRequest->status = BORROW_STATUS_ACCEPTED; // 回到同意借阅状态
-		$borrowRequest->update();
 
 		return 'ok';
 	}
