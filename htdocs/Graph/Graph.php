@@ -75,6 +75,22 @@ class Graph {
 		return $query->findOne();
 	}
 
+	public static function addUserBookCountByOne($isbn, $userId) {
+		$userBook = self::findUserBook($isbn, $userId);
+		if ($userBook === false) {
+			return 0;
+		}
+		return $userBook->update('left_count = left_count + 1');
+	}
+
+	public static function minusUserBookCountByOne($isbn, $userId) {
+		$userBook = self::findUserBook($isbn, $userId);
+		if ($userBook === false) {
+			return 0;
+		}
+		return $userBook->update('left_count = left_count - 1');
+	}
+
 	public static function findMobileByUserId($id) {
 		$query = new MUser();
 		$query->id = $id;

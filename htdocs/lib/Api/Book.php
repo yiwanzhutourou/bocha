@@ -100,6 +100,7 @@ class Book extends ApiBase {
 				'author'    => json_decode($bookOne->author),
 				'cover'     => $bookOne->cover,
 				'publisher' => $bookOne->publisher,
+				'leftCount' => $userBook->leftCount,
 			];
 		}, $user->getBorrowBooks());
 
@@ -155,7 +156,6 @@ class Book extends ApiBase {
 
 		/** @var MBorrowRequest $borrowRequest */
 		$borrowRequest = Graph::getBorrowRequest($id, $from, $selfId, $isbn);
-
 		if ($borrowRequest === false) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '借阅请求不存在');
 		}
@@ -165,8 +165,22 @@ class Book extends ApiBase {
 			throw new Exception(Exception::BAD_REQUEST , '不可以处理自己的请求哦~');
 		}
 
+		// 书不存在或者库存小于1,可能是用户删除了图书或者把书借给了其他人
+		// 直接把状态设置为 BORROW_STATUS_DECLINED
+		/** @var MUserBook $userBook */
+		$userBook = Graph::findUserBook($isbn, $selfId);
+		if ($userBook === false || $userBook->leftCount <= 0) {
+			$borrowRequest->status = BORROW_STATUS_DECLINED;
+			$borrowRequest->update();
+			throw new Exception(Exception::INTERNAL_ERROR, '你的书被删除或者借出去了，不可以完成这个操作~');
+		}
+
 		$borrowRequest->status = BORROW_STATUS_ACCEPTED;
-		$borrowRequest->update();
+		
+		if ($borrowRequest->update() > 0) {
+			// 书借出去了,库存减一
+			Graph::minusUserBookCountByOne($isbn, $selfId);
+		}
 
 		return 'ok';
 	}
@@ -235,7 +249,10 @@ class Book extends ApiBase {
 		}
 
 		$borrowRequest->status = BORROW_STATUS_RETURNED;
-		$borrowRequest->update();
+		if ($borrowRequest->update() > 0) {
+			// 书还回来了,库存加一
+			Graph::addUserBookCountByOne($isbn, $selfId);
+		}
 
 		return 'ok';
 	}

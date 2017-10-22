@@ -323,6 +323,7 @@ class User extends ApiBase {
 				'cover'     => $bookOne->cover,
 				'publisher' => $bookOne->publisher,
 				'canBorrow' => !$isMe,
+				'leftCount' => $userBook->leftCount,
 			];
 		}, $one->getBorrowBooksLimit(5));
 
@@ -476,6 +477,7 @@ class User extends ApiBase {
 					'cover'     => $one->cover,
 					'publisher' => $one->publisher,
 					'canBorrow' => !$isMe && intval($userBook->canBeBorrowed) === BOOK_CAN_BE_BORROWED,
+					'leftCount' => $userBook->leftCount,
 				];
 			}
 		}
@@ -505,6 +507,7 @@ class User extends ApiBase {
 					'cover'     => $one->cover,
 					'publisher' => $one->publisher,
 					'canBorrow' => intval($userBook->canBeBorrowed) === BOOK_CAN_BE_BORROWED,
+					'leftCount' => $userBook->leftCount,
 				];
 			}
 		}
@@ -756,6 +759,7 @@ class User extends ApiBase {
 		}, $list);
 	}
 
+	// 预约
 	public function borrowBook($toUser, $isbn, $formId) {
 		$this->checkAuth();
 
@@ -775,7 +779,20 @@ class User extends ApiBase {
 		/** @var MBook $book */
 		$book = Graph::findBook($isbn);
 		if ($book === false) {
-			throw new Exception(Exception::WEIXIN_AUTH_FAILED, '无法获取图书信息');
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '无法获取图书信息');
+		}
+
+		/** @var MUserBook $userBook */
+		$userBook = Graph::findUserBook($isbn, $selfId);
+		if ($userBook === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '书似乎已经被书房主人移除了~');
+		}
+		// 客户端界面上回防的,这里也防一下
+		if ($userBook->canBeBorrowed !== BOOK_CAN_BE_BORROWED) {
+			throw new Exception(Exception::BAD_REQUEST, '这本书是非闲置图书~');
+		}
+		if ($userBook->leftCount <= 0) {
+			throw new Exception(Exception::BAD_REQUEST, '书似乎已经被书房主人借出去了~');
 		}
 
 		$history = new MBorrowHistory();
@@ -929,6 +946,9 @@ class User extends ApiBase {
 				$toId = $following->toId;
 				/** @var MUser $user */
 				$user = Graph::findUserById($toId);
+				if ($user === false) {
+					return false;
+				}
 				$addresses = array_map(function($address) {
 					return [
 						'name'      => $address->name,
@@ -945,6 +965,9 @@ class User extends ApiBase {
 					'bookCount' => $bookCount
 				];
 			}, $followings);
+			$result = array_values(array_filter($result, function($item) {
+				return $item !== false;
+			}));
 		}
 
 		return $result;
@@ -959,6 +982,9 @@ class User extends ApiBase {
 				$toId = $following->toId;
 				/** @var MUser $user */
 				$user = Graph::findUserById($toId);
+				if ($user === false) {
+					return false;
+				}
 				$addresses = array_map(function($address) {
 					return [
 						'name'      => $address->name,
@@ -975,6 +1001,9 @@ class User extends ApiBase {
 					'bookCount' => $bookCount
 				];
 			}, $followings);
+			$result = array_values(array_filter($result, function($item) {
+				return $item !== false;
+			}));
 		}
 
 		return $result;
@@ -992,6 +1021,9 @@ class User extends ApiBase {
 				$fromId = $follower->fromId;
 				/** @var MUser $user */
 				$user = Graph::findUserById($fromId);
+				if ($user === false) {
+					return false;
+				}
 				$addresses = array_map(function($address) {
 					return [
 						'name'      => $address->name,
@@ -1008,6 +1040,9 @@ class User extends ApiBase {
 					'bookCount' => $bookCount
 				];
 			}, $followers);
+			$result = array_values(array_filter($result, function($item) {
+				return $item !== false;
+			}));
 		}
 
 		return $result;
@@ -1022,6 +1057,9 @@ class User extends ApiBase {
 				$fromId = $follower->fromId;
 				/** @var MUser $user */
 				$user = Graph::findUserById($fromId);
+				if ($user === false) {
+					return false;
+				}
 				$addresses = array_map(function($address) {
 					return [
 						'name'      => $address->name,
@@ -1038,6 +1076,9 @@ class User extends ApiBase {
 					'bookCount' => $bookCount
 				];
 			}, $followers);
+			$result = array_values(array_filter($result, function($item) {
+				return $item !== false;
+			}));
 		}
 
 		return $result;
