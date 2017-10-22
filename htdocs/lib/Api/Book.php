@@ -203,7 +203,10 @@ class Book extends ApiBase {
 		}
 
 		$borrowRequest->status = BORROW_STATUS_RETURNED;
-		$borrowRequest->update();
+		if ($borrowRequest->update()) {
+			// 书还回来了,库存加一
+			Graph::addUserBookCountByOne($isbn, $selfId);
+		}
 
 		return 'ok';
 	}
