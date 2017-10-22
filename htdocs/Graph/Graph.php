@@ -31,8 +31,7 @@ define ('DISCOVER_ITEM_USER_DELETED', 3);
 define ('BORROW_STATUS_NORMAL', 0);
 define ('BORROW_STATUS_ACCEPTED', 1);
 define ('BORROW_STATUS_DECLINED', 2);
-define ('BORROW_STATUS_RETURNING', 3);
-define ('BORROW_STATUS_RETURNED', 4);
+define ('BORROW_STATUS_RETURNED', 3);
 
 class Graph {
 
