@@ -69,6 +69,9 @@ class Map extends ApiBase {
 			if ($uid && count($uid) > 0) {
 				/** @var MUser $user */
 				$user = Graph::findUserById($userId);
+				if ($user === false) {
+					continue;
+				}
 				/** @var MUserAddress $address */
 				$address = Graph::findUserAddress($userId);
 				$bookCount = $user->getBookListCount();
