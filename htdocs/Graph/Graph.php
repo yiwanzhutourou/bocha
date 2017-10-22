@@ -32,7 +32,7 @@ define ('BORROW_STATUS_NORMAL', 0);
 define ('BORROW_STATUS_ACCEPTED', 1);
 define ('BORROW_STATUS_DECLINED', 2);
 define ('BORROW_STATUS_RETURNING', 3);
-define ('BORROW_STATUS_RETURNED', 3);
+define ('BORROW_STATUS_RETURNED', 4);
 
 class Graph {
 
@@ -489,12 +489,27 @@ class Graph {
 		return $request->insert();
 	}
 
-	public static function getBorrowRequest($from, $to, $isbn) {
+	public static function getBorrowRequest($id, $from, $to, $isbn) {
 		$request = new MBorrowRequest();
+		$request->id = $id;
 		$request->from = $from;
 		$request->to = $to;
 		$request->bookIsbn = $isbn;
 		return $request->findOne();
+	}
+
+	public static function getBorrowRequests($userId, $status) {
+		$query = new MBorrowRequest();
+		$query->to = $userId;
+		$query->status = $status;
+		return $query->query('', 'ORDER BY create_time DESC');
+	}
+
+	public static function getOutBorrowRequests($userId, $status) {
+		$query = new MBorrowRequest();
+		$query->from = $userId;
+		$query->status = $status;
+		return $query->query('', 'ORDER BY create_time DESC');
 	}
 }
 

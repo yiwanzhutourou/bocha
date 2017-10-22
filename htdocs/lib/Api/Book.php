@@ -148,21 +148,21 @@ class Book extends ApiBase {
 		throw new Exception(Exception::INTERNAL_ERROR, '服务器繁忙，请稍后再试');
 	}
 
-	public function accept($from, $isbn) {
+	public function accept($id, $from, $isbn) {
 		\Visitor::instance()->checkAuth();
 
 		$selfId = \Visitor::instance()->getUserId();
 
-		// 不可能发生,简单防一下
-		if ($from === $selfId) {
-			throw new Exception(Exception::BAD_REQUEST , '不可以处理自己的请求哦~');
-		}
-
 		/** @var MBorrowRequest $borrowRequest */
-		$borrowRequest = Graph::getBorrowRequest($from, $selfId, $isbn);
+		$borrowRequest = Graph::getBorrowRequest($id, $from, $selfId, $isbn);
 
 		if ($borrowRequest === false) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '借阅请求不存在');
+		}
+
+		// 不可能发生,简单防一下
+		if ($from === $selfId) {
+			throw new Exception(Exception::BAD_REQUEST , '不可以处理自己的请求哦~');
 		}
 
 		$borrowRequest->status = BORROW_STATUS_ACCEPTED;
@@ -171,7 +171,7 @@ class Book extends ApiBase {
 		return 'ok';
 	}
 
-	public function decline($from, $isbn) {
+	public function decline($id, $from, $isbn) {
 		\Visitor::instance()->checkAuth();
 
 		$selfId = \Visitor::instance()->getUserId();
@@ -182,7 +182,7 @@ class Book extends ApiBase {
 		}
 
 		/** @var MBorrowRequest $borrowRequest */
-		$borrowRequest = Graph::getBorrowRequest($from, $selfId, $isbn);
+		$borrowRequest = Graph::getBorrowRequest($id, $from, $selfId, $isbn);
 
 		if ($borrowRequest === false) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '借阅请求不存在');
@@ -194,7 +194,7 @@ class Book extends ApiBase {
 		return 'ok';
 	}
 
-	public function returnBook($to, $isbn) {
+	public function returnBook($id, $to, $isbn) {
 		\Visitor::instance()->checkAuth();
 
 		$selfId = \Visitor::instance()->getUserId();
@@ -205,7 +205,7 @@ class Book extends ApiBase {
 		}
 
 		/** @var MBorrowRequest $borrowRequest */
-		$borrowRequest = Graph::getBorrowRequest($selfId, $to, $isbn);
+		$borrowRequest = Graph::getBorrowRequest($id, $selfId, $to, $isbn);
 
 		if ($borrowRequest === false) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '借阅请求不存在');
@@ -217,7 +217,7 @@ class Book extends ApiBase {
 		return 'ok';
 	}
 
-	public function acceptReturn($from, $isbn) {
+	public function acceptReturn($id, $from, $isbn) {
 		\Visitor::instance()->checkAuth();
 
 		$selfId = \Visitor::instance()->getUserId();
@@ -228,7 +228,7 @@ class Book extends ApiBase {
 		}
 
 		/** @var MBorrowRequest $borrowRequest */
-		$borrowRequest = Graph::getBorrowRequest($from, $selfId, $isbn);
+		$borrowRequest = Graph::getBorrowRequest($id, $from, $selfId, $isbn);
 
 		if ($borrowRequest === false) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '借阅请求不存在');
@@ -240,7 +240,7 @@ class Book extends ApiBase {
 		return 'ok';
 	}
 
-	public function declineReturn($from, $isbn) {
+	public function declineReturn($id, $from, $isbn) {
 		\Visitor::instance()->checkAuth();
 
 		$selfId = \Visitor::instance()->getUserId();
@@ -251,7 +251,7 @@ class Book extends ApiBase {
 		}
 
 		/** @var MBorrowRequest $borrowRequest */
-		$borrowRequest = Graph::getBorrowRequest($from, $selfId, $isbn);
+		$borrowRequest = Graph::getBorrowRequest($id, $from, $selfId, $isbn);
 
 		if ($borrowRequest === false) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '借阅请求不存在');
@@ -261,5 +261,127 @@ class Book extends ApiBase {
 		$borrowRequest->update();
 
 		return 'ok';
+	}
+
+	public function getMyBorrowRequests($flag = 0) {
+		\Visitor::instance()->checkAuth();
+
+		$status = intval($flag);
+		if ($status < BORROW_STATUS_NORMAL || $status > BORROW_STATUS_RETURNED) {
+			throw new Exception(Exception::BAD_REQUEST, '无法获取数据');
+		}
+
+		$selfId = \Visitor::instance()->getUserId();
+		$dataList = Graph::getBorrowRequests($selfId, $status);
+
+		if ($dataList === false) {
+			return [];
+		}
+
+		$dataList = array_map(function($data) {
+			/** @var MBorrowRequest $data */
+			/** @var MUser $user */
+			$user = Graph::findUserById($data->from);
+			if ($user === false) {
+				return false;
+			}
+			/** @var MBook $book */
+			$book = Graph::findBook($data->bookIsbn);
+			if ($book === false) {
+				return false;
+			}
+			return [
+				'id'        => $data->id,
+				'user'      => [
+					'id'       => $user->id,
+					'nickname' => $user->nickname,
+					'avatar'   => $user->avatar
+				],
+				'book'      => [
+					'isbn'      => $book->isbn,
+					'title'     => $book->title,
+					'author'    => self::parseAuthor($book->author),
+					'cover'     => $book->cover,
+					'publisher' => $book->publisher,
+				],
+				'timestamp' => $data->createTime,
+				'status'    => $data->status,
+			];
+		}, $dataList);
+
+		$dataList = array_filter($dataList, function($item) {
+			return $item !== false;
+		});
+
+		return $dataList;
+	}
+
+	public function getMyOutBorrowRequests($flag = 0) {
+		\Visitor::instance()->checkAuth();
+
+		$status = intval($flag);
+		if ($status < BORROW_STATUS_NORMAL || $status > BORROW_STATUS_RETURNED) {
+			throw new Exception(Exception::BAD_REQUEST, '无法获取数据');
+		}
+
+		$selfId = \Visitor::instance()->getUserId();
+		$dataList = Graph::getOutBorrowRequests($selfId, $status);
+
+		if ($dataList === false) {
+			return [];
+		}
+
+		$dataList = array_map(function($data) {
+			/** @var MBorrowRequest $data */
+			/** @var MUser $user */
+			$user = Graph::findUserById($data->to);
+			if ($user === false) {
+				return false;
+			}
+			/** @var MBook $book */
+			$book = Graph::findBook($data->bookIsbn);
+			if ($book === false) {
+				return false;
+			}
+			return [
+				'id'        => $data->id,
+				'user'      => [
+					'id'       => $user->id,
+					'nickname' => $user->nickname,
+					'avatar'   => $user->avatar
+				],
+				'book'      => [
+					'isbn'      => $book->isbn,
+					'title'     => $book->title,
+					'author'    => self::parseAuthor($book->author),
+					'cover'     => $book->cover,
+					'publisher' => $book->publisher,
+				],
+				'timestamp' => $data->createTime,
+				'status'    => $data->status,
+			];
+		}, $dataList);
+
+		$dataList = array_filter($dataList, function($item) {
+			return $item !== false;
+		});
+
+		return $dataList;
+	}
+
+	private static function parseAuthor($authorString) {
+		if (empty($authorString)) {
+			return '';
+		}
+
+		$authors = json_decode($authorString);
+		$result = '';
+		foreach ($authors as $author) {
+			$result .= ($author . ' ');
+		}
+		if (strlen($result) > 0) {
+			$result = substr($result, 0, strlen($result) - 1);
+		}
+		return $result;
 	}
 }
