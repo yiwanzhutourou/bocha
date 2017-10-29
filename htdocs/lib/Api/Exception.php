@@ -11,6 +11,7 @@ class Exception extends \Exception {
 	const INTERNAL_ERROR = 1001;
 	const INVALID_COMMAND = 2003;
 	const PARAMETERS_MISSING = 2004;
+	const INVALID_PARAMETERS = 2005;
 
 	const BAD_REQUEST = 2007;
 	const AUTH_FAILED = 2008;

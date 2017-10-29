@@ -526,6 +526,25 @@ class Graph {
 		$query->status = $status;
 		return $query->query('', 'ORDER BY create_time DESC');
 	}
+
+	// 下面都是图书馆的函数,非图书馆的写到上面去
+	public static function findLibraryById($id) {
+		$lib = new MLibrary();
+		$lib->id = $id;
+		return $lib->findOne();
+	}
+
+	public static function findLibsByUser($userId) {
+		$query = new MLibraryAdmin();
+		$query->userId = $userId;
+		return $query->find();
+	}
+
+	public static function getLibAddress($libId) {
+		$query = new MLibraryAddress();
+		$query->libId = $libId;
+		return $query->findOne();
+	}
 }
 
 class DataConnection {
@@ -1462,6 +1481,82 @@ class MXu extends Data {
 				'value'      => 'value',
 				'createTime' => 'create_time',
 				'expireTime' => 'expire_time',
+			]
+		];
+		parent::init($options);
+	}
+}
+
+// 图书馆相关
+/**
+ * Class MLibrary
+ * @property mixed id
+ * @property mixed name
+ * @property mixed avatar
+ * @property mixed defaultPic
+ * @property mixed info
+ */
+class MLibrary extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_library',
+			'columns' => [
+				'id'         => '_id',
+				'name'       => 'name',
+				'avatar'     => 'avatar',
+				'defaultPic' => 'default_pic',
+				'info'       => 'info'
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
+ * Class MLibraryAdmin
+ * @property mixed id
+ * @property mixed libId
+ * @property mixed userId
+ */
+class MLibraryAdmin extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_library_admin',
+			'columns' => [
+				'id'     => '_id',
+				'libId'  => 'lib_id',
+				'userId' => 'user_id',
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
+ * Class MLibraryAddress
+ * @property mixed id
+ * @property mixed libId
+ * @property mixed name
+ * @property mixed detail
+ * @property mixed longitude
+ * @property mixed latitude
+ * @property mixed city
+ */
+class MLibraryAddress extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_library_address',
+			'columns' => [
+				'id'        => '_id',
+				'libId'     => 'lib_id',
+				'name'      => 'address',
+				'detail'    => 'detail',
+				'longitude' => 'longitude',
+				'latitude'  => 'latitude',
+				'city'      => 'city'
 			]
 		];
 		parent::init($options);
