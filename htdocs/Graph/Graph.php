@@ -256,7 +256,7 @@ class Graph {
 
 	public static function sendNewPostMessage($card, $nickname) {
 		$extra = [
-			'router' => 'card',
+			'router' => 'newcard',
 			'extra'  => $card->id,
 		];
 
@@ -270,7 +270,7 @@ class Graph {
 
 	public static function sendRepostMessage($card, $nickname) {
 		$extra = [
-			'router' => 'card',
+			'router' => 'newcard',
 			'extra'  => $card->id,
 		];
 

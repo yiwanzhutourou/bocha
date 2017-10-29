@@ -6,8 +6,7 @@
 
 namespace Api;
 
-use Graph\Graph;
-use Graph\MCard;
+use Graph\MDiscoverFlow;
 
 class Youdu extends ApiBase {
 	public function rights() {
@@ -27,16 +26,74 @@ class Youdu extends ApiBase {
 			."对免责声明的解释、修改及更新权均属于有读书房所有。";
 	}
 
-	public function huHaha() {
-		$query = new MCard();
-		$cardList = $query->query("status = '0'", 'ORDER BY create_time DESC');
+//	public function huHaha() {
+//		$query = new MCard();
+//		$cardList = $query->query("status = '0'", 'ORDER BY create_time DESC');
+//
+//		if ($cardList !== false) {
+//			foreach ($cardList as $card) {
+//				/** @var MCard $card */
+//				Graph::addNewCardToDiscoverFlow($card);
+//			}
+//		}
+//
+//		return 'ok';
+//	}
 
-		if ($cardList !== false) {
-			foreach ($cardList as $card) {
-				/** @var MCard $card */
-				Graph::addNewCardToDiscoverFlow($card);
-			}
+	public function cardApprove($cardId) {
+		\Visitor::instance()->checkAuth();
+
+		$userId = intval(\Visitor::instance()->getUserId());
+		if ($userId !== 34 && $userId !== 35) {
+			throw new Exception(Exception::AUTH_FAILED, '没有权限~');
 		}
+
+		$query = new MDiscoverFlow();
+		$query->type = 'card';
+		$query->contentId = $cardId;
+
+		/** @var MDiscoverFlow $cardFlow */
+		$cardFlow = $query->findOne();
+
+		if ($cardFlow === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '卡片不存在~');
+		}
+
+		if (intval($cardFlow->status) === DISCOVER_ITEM_USER_DELETED) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '卡片已被作者删除~');
+		}
+
+		$cardFlow->status = DISCOVER_ITEM_APPROVED;
+		$cardFlow->update();
+
+		return 'ok';
+	}
+
+	public function cardDecline($cardId) {
+		\Visitor::instance()->checkAuth();
+
+		$userId = intval(\Visitor::instance()->getUserId());
+		if ($userId !== 34 && $userId !== 35) {
+			throw new Exception(Exception::AUTH_FAILED, '没有权限~');
+		}
+
+		$query = new MDiscoverFlow();
+		$query->type = 'card';
+		$query->contentId = $cardId;
+
+		/** @var MDiscoverFlow $cardFlow */
+		$cardFlow = $query->findOne();
+
+		if ($cardFlow === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '卡片不存在~');
+		}
+
+		if (intval($cardFlow->status) === DISCOVER_ITEM_USER_DELETED) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '卡片已被作者删除~');
+		}
+
+		$cardFlow->status = DISCOVER_ITEM_DENIED;
+		$cardFlow->update();
 
 		return 'ok';
 	}
