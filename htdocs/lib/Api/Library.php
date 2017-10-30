@@ -12,6 +12,7 @@ use Graph\MLibrary;
 use Graph\MLibraryAddress;
 use Graph\MLibraryAdmin;
 use Graph\MLibraryBook;
+use Graph\MUser;
 
 class Library extends ApiBase {
 
@@ -35,7 +36,73 @@ class Library extends ApiBase {
 
 	// ----- 需要权限
 
-	
+	public function checkUser($id, $userId) {
+		$this->checkAuth();
+
+		$selfId = \Visitor::instance()->getUserId();
+		$this->checkAdmin($id, $selfId);
+
+		/** @var MLibrary $library */
+		$library = Graph::findLibraryById($id);
+		if ($library === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '图书馆不存在~');
+		}
+
+		/** @var MUser $user */
+		$user = Graph::findUserById($userId);
+
+		if ($user === false) {
+			throw new Exception(Exception::AUTH_FAILED, '用户不存在~');
+		}
+
+		// TODO 后面要检查各种图书馆定制的权限
+
+		return [
+			'id'       => $user->id,
+			'nickname' => $user->nickname,
+			'avatar'   => $user->avatar,
+		];
+	}
+
+	public function getBooks($id) {
+		$this->checkAuth();
+
+		$userId = \Visitor::instance()->getUserId();
+		$this->checkAdmin($id, $userId);
+
+		/** @var MLibrary $library */
+		$library = Graph::findLibraryById($id);
+		if ($library === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '图书馆不存在~');
+		}
+
+		$query = new MLibraryBook();
+		$query->libId = $id;
+		$bookList = $query->find();
+
+		$bookList = array_map(function($libBook) {
+			/** @var MLibraryBook $libBook */
+			/** @var MBook $book */
+			$book = Graph::findBook($libBook->isbn);
+			if ($book === false) {
+				return false;
+			}
+			return [
+				'isbn'       => $book->isbn,
+				'title'      => $book->title,
+				'author'     => json_decode($book->author),
+				'cover'      => $book->cover,
+				'publisher'  => $book->publisher,
+				'totalCount' => $libBook->totalCount,
+				'leftCount'  => $libBook->leftCount,
+			];
+		}, $bookList);
+
+		$bookList = array_values(array_filter($bookList, function($item) {
+			return $item !== false;
+		}));
+		return $bookList;
+	}
 
 	// 服务器打豆瓣接口可能会炸,可能需要把获取图书信息的逻辑放在客户端
 	public function addBook($id, $isbn) {
@@ -51,7 +118,7 @@ class Library extends ApiBase {
 		}
 
 		// check book in Douban
-		$url = "https://api.douban.com/v2/book/{$isbn}";
+		$url = "https://api.douban.com/v2/book/isbn/{$isbn}";
 		$response = file_get_contents($url);
 
 		$doubanBook = json_decode($response);
@@ -64,7 +131,7 @@ class Library extends ApiBase {
 
 		$libBook = new MLibraryBook();
 		$libBook->libId = $id;
-		$libBook->isbn = $isbn;
+		$libBook->isbn = $doubanBook->id;
 
 		if ($libBook->findOne() !== false) {
 			throw new Exception(Exception::RESOURCE_ALREADY_ADDED , '不可以添加重复的图书哦~');
