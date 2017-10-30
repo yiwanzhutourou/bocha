@@ -601,10 +601,15 @@ class Card extends ApiBase {
 		$banners = [];
 		if ($isTop) {
 			// 活动置顶
-			$banners[] =  $this->createNewBookItem('27068817');
+			$acBook = $this->createNewBookItem('27068817');
+			if ($acBook !== false) {
+				$banners[] = $acBook;
+			}
 			$banners[] = $this->createCardItem('54');
-			//$banners[] =  $this->createActivityItem();
-			$banners[] =  $this->createNewBookItem('27069925');
+			$acBook = $this->createNewBookItem('27069925');
+			if ($acBook !== false) {
+				$banners[] = $acBook;
+			}
 		}
 
 		return [
@@ -677,7 +682,20 @@ class Card extends ApiBase {
 		$response = file_get_contents($url);
 		$doubanBook = json_decode($response);
 		if ($doubanBook === null || empty($doubanBook->id)) {
-			return false;
+			/** @var MBook $bochaBook */
+			$bochaBook = Graph::findBook($isbn);
+			if ($bochaBook !== false) {
+				return [
+					'type' => 'book',
+					'data' => [
+						'id'     => $bochaBook->isbn,
+						'title'  => "新书推荐: {$bochaBook->title}",
+						'picUrl' => $bochaBook->cover,
+					],
+				];
+			} else {
+				return false;
+			}
 		}
 
 		/** @var MBook $book */
