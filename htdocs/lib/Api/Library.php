@@ -7,9 +7,11 @@
 namespace Api;
 
 use Graph\Graph;
+use Graph\MBook;
 use Graph\MLibrary;
 use Graph\MLibraryAddress;
 use Graph\MLibraryAdmin;
+use Graph\MLibraryBook;
 
 class Library extends ApiBase {
 
@@ -32,6 +34,48 @@ class Library extends ApiBase {
 
 
 	// ----- 需要权限
+
+	
+
+	// 服务器打豆瓣接口可能会炸,可能需要把获取图书信息的逻辑放在客户端
+	public function addBook($id, $isbn) {
+		$this->checkAuth();
+
+		$userId = \Visitor::instance()->getUserId();
+		$this->checkAdmin($id, $userId);
+
+		/** @var MLibrary $library */
+		$library = Graph::findLibraryById($id);
+		if ($library === false) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '图书馆不存在~');
+		}
+
+		// check book in Douban
+		$url = "https://api.douban.com/v2/book/{$isbn}";
+		$response = file_get_contents($url);
+
+		$doubanBook = json_decode($response);
+		if ($doubanBook === null || empty($doubanBook->id)) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '无法获取图书信息');
+		}
+
+		$book = new MBook();
+		$book->updateBook($doubanBook);
+
+		$libBook = new MLibraryBook();
+		$libBook->libId = $id;
+		$libBook->isbn = $isbn;
+
+		if ($libBook->findOne() !== false) {
+			throw new Exception(Exception::RESOURCE_ALREADY_ADDED , '不可以添加重复的图书哦~');
+		} else {
+			$libBook->totalCount = 1;
+			$libBook->leftCount = 1; // 暂时默认都是 1 本书
+			// 图书馆新增图书要做什么推荐逻辑吗?
+			$libBook->insert();
+		}
+		return 'ok';
+	}
 
 	public function getSettingData($id) {
 		$this->checkAuth();

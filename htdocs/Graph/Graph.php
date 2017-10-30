@@ -1562,3 +1562,28 @@ class MLibraryAddress extends Data {
 		parent::init($options);
 	}
 }
+
+/**
+ * Class MLibraryBook
+ * @property mixed id
+ * @property mixed libId
+ * @property mixed isbn
+ * @property mixed totalCount
+ * @property mixed leftCount
+ */
+class MLibraryBook extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_library_book',
+			'columns' => [
+				'id'         => '_id',
+				'libId'      => 'lib_id',
+				'isbn'       => 'isbn',
+				'totalCount' => 'count',
+				'leftCount'  => 'left_count',
+			]
+		];
+		parent::init($options);
+	}
+}
