@@ -103,8 +103,8 @@ class User extends ApiBase {
 		return [
 			'nickname'       => $user->nickname,
 			'avatar'         => $user->avatar,
-			'bookCount' => $bookCount,
-			'cardCount' => $cardCount,
+			'bookCount'      => $bookCount,
+			'cardCount'      => $cardCount,
 			'followerCount'  => Graph::getFollowerCount($user->id),
 			'followingCount' => Graph::getFollowingCount($user->id),
 		];
@@ -718,6 +718,61 @@ class User extends ApiBase {
 		}, $list);
 	}
 
+	public function getBorrowOrders($out) {
+		$this->checkAuth();
+
+		$userId = \Visitor::instance()->getUserId();
+		$query = new MBorrowHistory();
+		if (intval($out) === 1) {
+			$query->from = $userId;
+		} else {
+			$query->to = $userId;
+		}
+
+		$orderList = $query->find();
+
+		$orderList = array_map(function($order) use ($out) {
+			/** @var MBorrowHistory order */
+			if (intval($out) === 1) {
+				$otherUserId = $order->to;
+			} else {
+				$otherUserId = $order->from;
+			}
+			/** @var MUser $otherUser */
+			$otherUser = Graph::findUserById($otherUserId);
+			if ($otherUser === false) {
+				return false;
+			}
+			/** @var MBook $book */
+			$book = Graph::findBook($order->bookIsbn);
+			if ($book === false) {
+				return false;
+			}
+			return [
+				'id'   => $order->id,
+				'user' => [
+					'id'       => $otherUser->id,
+					'nickname' => $otherUser->nickname,
+					'avatar'   => $otherUser->avatar
+				],
+				'book' => [
+					'isbn'      => $book->isbn,
+					'title'     => $book->title,
+					'author'    => self::parseAuthor($book->author),
+					'cover'     => $book->cover,
+					'publisher' => $book->publisher,
+				],
+				'date' => $order->date,
+			];
+		}, $orderList);
+
+		$orderList = array_values(array_filter($orderList, function($item) {
+			return $item !== false;
+		}));
+
+		return $orderList;
+	}
+
 	public function getBorrowRequestCount() {
 		$this->checkAuth();
 
@@ -1227,6 +1282,22 @@ class User extends ApiBase {
 		}
 
 		return true;
+	}
+
+	private static function parseAuthor($authorString) {
+		if (empty($authorString)) {
+			return '';
+		}
+
+		$authors = json_decode($authorString);
+		$result = '';
+		foreach ($authors as $author) {
+			$result .= ($author . ' ');
+		}
+		if (strlen($result) > 0) {
+			$result = substr($result, 0, strlen($result) - 1);
+		}
+		return $result;
 	}
 
 	private function checkAuth($skipMobile = false) {
