@@ -16,10 +16,18 @@ use Graph\MUser;
 use Graph\MUserBook;
 
 define ('ACTIVITY_CARD_ID', 1);
-define ('ACTIVITY_CARD_TITLE', '');
-define ('ACTIVITY_CARD_CONTENT', "参与方式：在有读书房小程序内发布读书卡片\n\n流程：在有读书房小程序内注册，填写个人书房信息，添加图书，发布读书卡片，转发邀请朋友们点赞，有读书房将在 10月9日 通过消息收集你的邮寄信息\n\n规则：10月1-8日 发布的有效卡片！（有效卡片：原创内容，关联图书，上传图片）点赞数前 50 的朋友们，我们将精选一本“只给你”的书；点赞数最高者，可获 Kindle 一部（所有解释权归有读书房所有）");
-define('ACTIVITY_CARD_PIC', 'http://othb16dht.bkt.clouddn.com/WechatIMG3886.jpeg');
-define('ACTIVITY_CARD_BANNER_PIC', 'http://othb16dht.bkt.clouddn.com/zhongqiu.jpeg');
+define ('ACTIVITY_CARD_TITLE', '到有读书房分享你的阅读故事');
+define ('ACTIVITY_CARD_DETAIL_TITLE', '到有读书房『写读书卡片』分享你的阅读故事');
+define ('ACTIVITY_CARD_CONTENT', "『我十三岁时，常到我爸爸的书柜里偷书看。那时候政治气氛紧张，他把所有不宜摆在外面的书都锁了起来，在那个柜子里，有奥维德的《变形记》，朱生豪译的莎翁戏剧，甚至还有《十日谈》。柜子是锁着的，但我哥哥有捅开它的方法。他还有说服我去火中取栗的办法：你小，身体也单薄，我看爸爸不好意思揍你。但实际上，在揍我这个问题上，我爸爸显得不够绅士派，我的手脚也不太灵活，总给他这种机会。总而言之，偷出书来两人看，挨揍则是我一人挨，就这样看了一些书。虽然很吃亏，但我也不后悔。』\n\n——王小波 《我的精神家园》\n\n到有读书房『写读书卡片』分享你的阅读故事，我们会定期选出优秀的作品分享给大家，并赠送给作者一本『只属于 TA』的书。");
+define('ACTIVITY_CARD_PIC', 'https://img3.doubanio.com/lpic/s28017585.jpg');
+define('ACTIVITY_CARD_BANNER_PIC', 'http://othb16dht.bkt.clouddn.com/01100000000000144734433974740_s.jpg');
+
+define ('ACTIVITY_CARD_ID_2', 2);
+define ('ACTIVITY_CARD_TITLE_2', '到有读书房分享你的阅读故事');
+define ('ACTIVITY_CARD_DETAIL_TITLE_2', '到有读书房『写读书卡片』分享你的阅读故事');
+define ('ACTIVITY_CARD_CONTENT_2', "『我想起有人写过这么一句话：隐藏一片树叶的最好的地点是树林。我退休之前在藏书有九十万册的国家图书馆任职，我知道门厅右边有一道弧形的梯级通向地下室，地下室里存放报纸和地图。我趁工作人员不注意的时候，把那本沙之书偷偷地放在一个阴暗的搁架上。我竭力不去记住搁架的哪一层，离门口有多远。』\n\n——博尔赫斯《沙之书》\n\n到有读书房『写读书卡片』分享你的阅读故事，我们会定期选出优秀的作品分享给大家，并赠送给作者一本『只属于 TA』的书。");
+define('ACTIVITY_CARD_PIC_2', 'http://othb16dht.bkt.clouddn.com/2840081488.jpg');
+define('ACTIVITY_CARD_BANNER_PIC_2', 'http://othb16dht.bkt.clouddn.com/2840081488.jpg');
 
 class Card extends ApiBase {
 
@@ -298,6 +306,11 @@ class Card extends ApiBase {
 			return $this->createActivityDetail();
 		}
 
+		// 活动 card
+		if (intval($cardId) === ACTIVITY_CARD_ID_2) {
+			return $this->createActivityDetail2();
+		}
+
 		$query = new MCard();
 		$query->id = $cardId;
 
@@ -356,6 +369,7 @@ class Card extends ApiBase {
 				'approvalList'  => $approvalList,
 				'approvalCount' => $approvalCount,
 				'readCount'     => intval($card->readCount),
+				'showBottom'    => true,
 			];
 		}
 	}
@@ -601,15 +615,17 @@ class Card extends ApiBase {
 		$banners = [];
 		if ($isTop) {
 			// 活动置顶
-			$acBook = $this->createNewBookItem('27068817');
+			$banners[] = $this->createActivityItem2();
+			$banners[] = $this->createActivityItem();
+			$acBook = $this->createNewBookItem('26830570', 'https://img3.doubanio.com/view/freyr_page_photo/raw/public/1902.jpg');
 			if ($acBook !== false) {
 				$banners[] = $acBook;
 			}
 			$banners[] = $this->createCardItem('54');
-			$acBook = $this->createNewBookItem('27069925');
-			if ($acBook !== false) {
-				$banners[] = $acBook;
-			}
+//			$acBook = $this->createNewBookItem('27069925');
+//			if ($acBook !== false) {
+//				$banners[] = $acBook;
+//			}
 		}
 
 		return [
@@ -663,6 +679,19 @@ class Card extends ApiBase {
 		];
 	}
 
+	private function createActivityItem2() {
+		/** @var MCard $card */
+		$card = Graph::findCardById(ACTIVITY_CARD_ID_2);
+		return [
+			'type' => 'card',
+			'data' => [
+				'id'            => ACTIVITY_CARD_ID_2,
+				'title'         => ACTIVITY_CARD_TITLE_2,
+				'picUrl'        => ACTIVITY_CARD_BANNER_PIC_2,
+			],
+		];
+	}
+
 	private function createCardItem($id) {
 		/** @var MCard $card */
 		$card = Graph::findCardById($id);
@@ -676,36 +705,30 @@ class Card extends ApiBase {
 		];
 	}
 
-	private function createNewBookItem($isbn) {
+	private function createNewBookItem($isbn, $bookPic) {
+
+		/** @var MBook $bochaBook */
+		$bochaBook = Graph::findBook($isbn);
+		if ($bochaBook !== false) {
+			return [
+				'type' => 'book',
+				'data' => [
+					'id'     => $bochaBook->isbn,
+					'title'  => "新书推荐: {$bochaBook->title}",
+					'picUrl' => $bookPic,
+				],
+			];
+		}
 
 		$url = "https://api.douban.com/v2/book/{$isbn}";
 		$response = file_get_contents($url);
 		$doubanBook = json_decode($response);
 		if ($doubanBook === null || empty($doubanBook->id)) {
-			/** @var MBook $bochaBook */
-			$bochaBook = Graph::findBook($isbn);
-			if ($bochaBook !== false) {
-				return [
-					'type' => 'book',
-					'data' => [
-						'id'     => $bochaBook->isbn,
-						'title'  => "新书推荐: {$bochaBook->title}",
-						'picUrl' => $bochaBook->cover,
-					],
-				];
-			} else {
-				return false;
-			}
+			return false;
 		}
 
-		/** @var MBook $book */
-		$book = Graph::findBook($isbn);
-		
-		if ($book === false) {
-			$book = new MBook();
-			$book->updateBook($doubanBook);
-		}
-		$bookPic = $doubanBook->images->large;
+		$book = new MBook();
+		$book->updateBook($doubanBook);
 		return [
 			'type' => 'book',
 			'data' => [
@@ -717,33 +740,6 @@ class Card extends ApiBase {
 	}
 
 	private function createActivityDetail() {
-		/** @var MCard $card */
-		$card = Graph::findCardById(ACTIVITY_CARD_ID);
-
-		if ($card === false) {
-			return [];
-		}
-
-		$user = \Visitor::instance()->getUser();
-		if ($user != null) {
-			$hasApproved = Graph::hasApproved(ACTIVITY_CARD_ID, $user->id);
-		} else {
-			$hasApproved = false;
-		}
-
-		// approval list
-		$approvalList = array_map(function($approval) {
-			/** @var MCardApproval $approval */
-			return [
-				'id'     => $approval->userId,
-				'avatar' => $approval->userAvatar,
-			];
-		}, Graph::getCardApprovals(ACTIVITY_CARD_ID));
-		$approvalCount = Graph::getCardApprovalCount(ACTIVITY_CARD_ID);
-
-		// 增加一次浏览
-		$card->update('read_count = read_count + 1');
-
 		return [
 			'id'            => ACTIVITY_CARD_ID,
 			'user'          => [
@@ -751,16 +747,29 @@ class Card extends ApiBase {
 				'nickname' => '有读书房',
 				'avatar'   => 'http://othb16dht.bkt.clouddn.com/Fm3qYpsmNFGRDbWeTOQDRDfiJz9l?imageView2/1/w/640/h/640/format/jpg/q/75|imageslim',
 			],
-			'title'         => ACTIVITY_CARD_TITLE,
+			'title'         => ACTIVITY_CARD_DETAIL_TITLE,
 			'content'       => ACTIVITY_CARD_CONTENT,
 			'picUrl'        => getOriginalImgUrl(ACTIVITY_CARD_PIC),
 			'book'          => null,
-			'createTime'    => strtotime('2017-10-1'),
 			'isMe'          => false,
-			'hasApproved'   => $hasApproved,
-			'approvalList'  => $approvalList,
-			'approvalCount' => $approvalCount,
-			'readCount'     => intval($card->readCount),
+			'showBottom'    => false,
+		];
+	}
+
+	private function createActivityDetail2() {
+		return [
+			'id'            => ACTIVITY_CARD_ID_2,
+			'user'          => [
+				'id'       => BOCHA_ACTIVITY_USER_ID,
+				'nickname' => '有读书房',
+				'avatar'   => 'http://othb16dht.bkt.clouddn.com/Fm3qYpsmNFGRDbWeTOQDRDfiJz9l?imageView2/1/w/640/h/640/format/jpg/q/75|imageslim',
+			],
+			'title'         => ACTIVITY_CARD_DETAIL_TITLE_2,
+			'content'       => ACTIVITY_CARD_CONTENT_2,
+			'picUrl'        => getOriginalImgUrl(ACTIVITY_CARD_PIC_2),
+			'book'          => null,
+			'isMe'          => false,
+			'showBottom'    => false,
 		];
 	}
 }
