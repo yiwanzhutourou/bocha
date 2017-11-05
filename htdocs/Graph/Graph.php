@@ -1111,6 +1111,7 @@ class MUserBook extends Data {
  * @property mixed title
  * @property mixed author
  * @property mixed cover
+ * @property mixed bigCover
  * @property mixed publisher
  * @property mixed trueIsbn
  * @property mixed summary
@@ -1127,6 +1128,7 @@ class MBook extends Data {
 				'title'         => 'title',
 				'author'        => 'author',
 				'cover'         => 'cover',
+				'bigCover'      => 'big_cover',
 				'publisher'     => 'publisher',
 				'trueIsbn'      => 'true_isbn',
 				'summary'       => 'summary',
@@ -1145,6 +1147,11 @@ class MBook extends Data {
 		$this->title = $doubanBook->title;
 		$this->author = json_stringify($doubanBook->author);
 		$this->cover = $doubanBook->image;
+		if ($doubanBook->images && $doubanBook->images->large) {
+			$this->bigCover = $doubanBook->images->large;
+		} else {
+			$this->bigCover = '';
+		}
 		$this->publisher = $doubanBook->publisher;
 		$this->trueIsbn = empty($doubanBook->isbn13) ? 'fake_isbn' : $doubanBook->isbn13;
 		$this->summary = $doubanBook->summary;

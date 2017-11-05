@@ -514,6 +514,40 @@ class User extends ApiBase {
 		return $result;
 	}
 
+	/*
+	 * 新的添加图书接口,为了减少服务器被豆瓣墙掉的概率,从豆瓣获取图书信息的逻辑放在客户端
+	 * @param $book string 书结构字符串
+	 */
+	public function addNewBook($book) {
+		$this->checkAuth();
+
+		$doubanBook = json_decode($book);
+		if ($doubanBook === null || empty($doubanBook->id)) {
+			throw new Exception(Exception::RESOURCE_NOT_FOUND, '无法获取图书信息');
+		}
+
+		$book = new MBook();
+		$book->updateBook($doubanBook);
+
+		$user = \Visitor::instance()->getUser();
+		$userBook = new MUserBook();
+		$userBook->userId = $user->id;
+		$userBook->isbn = $doubanBook->id;
+		if ($userBook->findOne() !== false) {
+			throw new Exception(Exception::RESOURCE_ALREADY_ADDED , '不可以添加重复的图书哦~');
+		} else {
+			$userBook->createTime = strtotime('now');
+			$userBook->canBeBorrowed = BOOK_CAN_BE_BORROWED;
+			$userBook->totalCount = 1;
+			$userBook->leftCount = 1; // 暂时默认都是 1 本书
+			if ($userBook->insert() > 0) {
+				// 检查并添加新图书到发现流
+				Graph::addNewBookToDiscoverFlow($book, $userBook);
+			}
+		}
+		return 'ok';
+	}
+
 	public function addBook($isbn) {
 		$this->checkAuth();
 

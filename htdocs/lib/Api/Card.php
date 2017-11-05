@@ -37,17 +37,22 @@ class Card extends ApiBase {
 		\Visitor::instance()->checkAuth();
 
 		if (!empty($bookIsbn)) {
-			// check book in Douban
-			$url = "https://api.douban.com/v2/book/{$bookIsbn}";
-			$response = file_get_contents($url);
+			// 先看自己的数据库里有没有这本书,有就别去豆瓣查了
+			// 还是不能完全防住,先这样吧
+			$bochaBook = Graph::findBook($bookIsbn);
+			if ($bochaBook === false) {
+				// check book in Douban
+				$url = "https://api.douban.com/v2/book/{$bookIsbn}";
+				$response = file_get_contents($url);
 
-			$doubanBook = json_decode($response);
-			if ($doubanBook === null || empty($doubanBook->id)) {
-				throw new Exception(Exception::RESOURCE_NOT_FOUND, '无法获取图书信息');
+				$doubanBook = json_decode($response);
+				if ($doubanBook === null || empty($doubanBook->id)) {
+					throw new Exception(Exception::RESOURCE_NOT_FOUND, '无法获取图书信息');
+				}
+
+				$book = new MBook();
+				$book->updateBook($doubanBook);
 			}
-
-			$book = new MBook();
-			$book->updateBook($doubanBook);
 		}
 
 		$userId = \Visitor::instance()->getUserId();

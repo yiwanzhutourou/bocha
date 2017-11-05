@@ -13,6 +13,26 @@ use Graph\MUser;
 use Graph\MUserBook;
 
 class Book extends ApiBase {
+
+	public function checkAdded($bookIsbns) {
+		\Visitor::instance()->checkAuth();
+
+		$userId = \Visitor::instance()->getUserId();
+		$isbnList = json_decode($bookIsbns);
+
+		$resultList = [];
+		if (!empty($isbnList)) {
+			foreach ($isbnList as $isbn) {
+				$resultList[] = [
+					'isbn'  => $isbn,
+					'added' => Graph::findUserBook($isbn, $userId) !== false,
+				];
+			}
+		}
+
+		return $resultList;
+	}
+
 	public function search($key, $count = 20, $page = 0) {
 		$url = "https://api.douban.com/v2/book/search?"
 			. http_build_query([
