@@ -33,6 +33,87 @@ class Card extends ApiBase {
 
 	// --------- 自己的读书卡片相关的接口,需要登录
 
+	public function insertNew($content, $title, $picUrl, $book = '') {
+		\Visitor::instance()->checkAuth();
+
+		// 客户端传过来的豆瓣 Book 对象
+		$bookIsbn = '';
+		if (!empty($book)) {
+			$doubanBook = json_decode($book);
+			if ($doubanBook !== null && !empty($doubanBook->id)) {
+				$bochabook = new MBook();
+				$bochabook->updateBook($doubanBook);
+				$bookIsbn = $doubanBook->id;
+			}
+		}
+
+		$userId = \Visitor::instance()->getUserId();
+
+		if (!empty($picUrl)) {
+			// 鉴黄
+			$url = $picUrl . '?pulp';
+			$response = file_get_contents($url);
+			$pulp = json_decode($response);
+			// 没解出数据认为是正常的
+			if (empty($pulp)) {
+				$picIsNormal = true;
+			} else if ($pulp->code === 0
+					   && $pulp->pulp->label === 2) {
+				$picIsNormal = true;
+			} else {
+				$picIsNormal = false;
+			}
+
+			$query = new MCardPulp();
+			$query->userId = $userId;
+			$query->title = $title;
+			$query->content = $content;
+			$query->picUrl = $picUrl;
+			$query->createTime = strtotime('now');
+			$query->pulpRate = empty($pulp) ? -1 : $pulp->pulp->rate;
+			$query->pulpLabel = empty($pulp) ? -1 : $pulp->pulp->label;
+			$query->pulpReview = empty($pulp) ? 'empty' : $pulp->pulp->review;
+			$query->insert();
+
+			if ($picIsNormal === false) {
+				throw new Exception(Exception::RESOURCE_IS_PULP, '你的图片不符合规范，不可以在有读书房使用');
+			}
+		}
+
+		$content = Graph::escape($content);
+		$title = Graph::escape($title);
+
+		$query = new MCard();
+		$query->userId = $userId;
+		$query->title = $title;
+		$query->content = $content;
+		$query->status = CARD_STATUS_NORMAL;
+
+		// 先简单防一下
+		if ($query->findOne() !== false) {
+			throw new Exception(Exception::RESOURCE_IS_PULP, '你已经发送过类似读书卡片了~');
+		}
+
+		$query->picUrl = $picUrl;
+		$query->bookIsbn = $bookIsbn;
+		$query->createTime = strtotime('now');
+		$query->readCount = 0;
+
+		$insertId = $query->insert();
+
+		if ($insertId > 0) {
+			$query->id = $insertId;
+			// 将卡片加入发现流的待审核状态
+			Graph::addNewCardToDiscoverFlow($query);
+
+			// 给管理员发一条消息提醒审核(=.=目前就是给自己人发一下系统消息,等管理后台做出来再下掉)
+			Graph::sendNewPostMessage($query, \Visitor::instance()->getUser()->nickname);
+		}
+
+		return $insertId;
+	}
+
+	// 客户端升级后可以删了
 	public function insert($content, $title, $picUrl, $bookIsbn = '') {
 		\Visitor::instance()->checkAuth();
 
@@ -725,6 +806,8 @@ class Card extends ApiBase {
 			];
 		}
 
+		// 这里的豆瓣接口无所谓,自己能控制,而且第一次有人打了这个接口,自己数据库里也就有了
+		// 目前这里是唯一一处,其他地方都要删
 		$url = "https://api.douban.com/v2/book/{$isbn}";
 		$response = file_get_contents($url);
 		$doubanBook = json_decode($response);
