@@ -9,6 +9,10 @@ namespace Api;
 use Graph\MDiscoverFlow;
 
 class Youdu extends ApiBase {
+	public function what() {
+		return 'Bocha';
+	}
+
 	public function rights() {
 		return "有读书房拥有本微信小程序内所有资料的版权，任何被授权的浏览、复制、打印和传播属于本网站内的资料必须符合以下条件：\n"
 			."（1）所有的资料和图像均以获得信息为目的；\n"

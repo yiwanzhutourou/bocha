@@ -11,6 +11,7 @@ $response = BoResponse::instance();
 
 $routing_map = [
 	'/api/' => 'ApiController',
+	'/' => 'HomeController',
 ];
 
 $router = (new Router)

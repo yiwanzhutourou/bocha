@@ -23,8 +23,20 @@ class Router {
 		try {
 			$controller_name = $this->doRoute($this->router, $request, $response);
 		} catch (Exception $exp) {
+			$this->processException($exp, $response);
 		}
 		return $controller_name;
+	}
+	
+	private function processException(Exception $e, BoResponse $response) {
+		if ($e instanceof NotFoundException) {
+			$response->redirect('//www.youdushufang.com/');
+		} elseif ($e instanceof NeedRedirectException) {
+			$response->redirect($e->url, $e->status);
+		} else {
+			// 暂时先统一跳首页?
+			$response->redirect('//www.youdushufang.com/');
+		}
 	}
 
 	protected function doRoute(array $map, BoRequest $request, BoResponse $response) {

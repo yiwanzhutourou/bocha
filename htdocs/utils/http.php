@@ -7,11 +7,8 @@
 define('WITH_COLON', true);
 
 function request_url_scheme($with_colon = false) {
-	$return = 'http';
-	if (isset($_SERVER["HTTP_X_EBAY_REQUEST_PROTO"])
-		&& $_SERVER["HTTP_X_EBAY_REQUEST_PROTO"] == 'HTTPS') {
-		$return = 'https';
-	}
+	// 都支持 https 了
+	$return = 'https';
 
 	if ($with_colon) $return .= ':';
 

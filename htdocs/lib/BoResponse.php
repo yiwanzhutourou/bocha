@@ -113,4 +113,14 @@ class BoResponse {
 		$this->responseData->contentType($type);
 		return $this;
 	}
+
+	/**
+	 * @param string $url, can be "back" as shortcut for the refer url.
+	 * @param int $status "302" by default, and can be set as "301"
+	 * @throws Exception when set wrong status code.
+	 */
+	public function redirect($url, $status = 302) {
+		$this->responseData->prepareForRedirect($url, $status);
+		$this->send();
+	}
 }

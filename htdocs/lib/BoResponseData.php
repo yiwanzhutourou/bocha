@@ -171,4 +171,14 @@ class BoResponseData {
 
 		return $this;
 	}
+
+	public function prepareForRedirect($url, $status = 302) {
+		if (!in_array($status, [301, 302, 307, 308])) throw new Exception('Can not redirect with status:' . $status);
+		$this->status($status);
+		if ($url == 'back') $url = isset($_SERVER['HTTP_REFERER']) ? trim($_SERVER['HTTP_REFERER']) : '/';
+		if (strpos($url, '//') === 0) $url = request_url_scheme(WITH_COLON) . $url;
+		$this->header('Location', $url);
+		$this->content("<html><meta http-equiv=\"refresh\" content=\"0;url={$url}\"></html>");
+		return $this;
+	}
 }

@@ -25,15 +25,19 @@ class ApiController extends BaseController {
 	}
 
 	protected function handleException(\Exception $e, BoRequestData $request) {
-		$response = BoResponseData::createDefault()->jsonmode();
-		$content = json_stringify([
-			'error' => 500,
-			// 'message' => $e->getMessage(),
-			'message' => '服务器发生错误了~',
-			'ext' => '',
-		]);
-		$response->status(500)->content($content);
-		return $response;
+		if ($e instanceof NeedRedirectException) {
+			throw $e;
+		} else {
+			$response = BoResponseData::createDefault()->jsonmode();
+			$content = json_stringify([
+										  'error' => 500,
+										  // 'message' => $e->getMessage(),
+										  'message' => '服务器发生错误了~',
+										  'ext' => '',
+									  ]);
+			$response->status(500)->content($content);
+			return $response;
+		}
 	}
 
 	/**
@@ -42,6 +46,12 @@ class ApiController extends BaseController {
 	 * @throws \Api\Exception
 	 */
 	private function initEnv() {
+		// 检查平台
+		$platform = BoHttpRequest::header('BOCHA-PLATFORM');
+		// 目前仅支持微信小程序
+		if (empty($platform) || $platform !== 'wx-mp') {
+			throw new NeedRedirectException('//www.youdushufang.com/');
+		}
 		// 验证token
 		$token = BoHttpRequest::header('BOCHA-USER-TOKEN');
 		if ($token) {
