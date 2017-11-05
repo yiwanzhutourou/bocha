@@ -526,8 +526,8 @@ class User extends ApiBase {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '无法获取图书信息');
 		}
 
-		$book = new MBook();
-		$book->updateBook($doubanBook);
+		$bochaBook = new MBook();
+		$bochaBook->updateBook($doubanBook);
 
 		$user = \Visitor::instance()->getUser();
 		$userBook = new MUserBook();
@@ -548,6 +548,7 @@ class User extends ApiBase {
 		return 'ok';
 	}
 
+	// 挪到客户端了,可以删了
 	public function addBook($isbn) {
 		$this->checkAuth();
 

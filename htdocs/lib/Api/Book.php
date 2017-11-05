@@ -33,6 +33,7 @@ class Book extends ApiBase {
 		return $resultList;
 	}
 
+	// 移到客户端了,可以删了
 	public function search($key, $count = 20, $page = 0) {
 		$url = "https://api.douban.com/v2/book/search?"
 			. http_build_query([
@@ -71,23 +72,20 @@ class Book extends ApiBase {
 	}
 
 	public function getBookByIsbn($isbn) {
-		$url = "https://api.douban.com/v2/book/isbn/{$isbn}";
-		$response = file_get_contents($url);
-
-		$book = json_decode($response);
-		if ($book !== null && !empty($book->id)) {
+		/** @var MBook $book */
+		$book = Graph::findBookByTrueIsbn($isbn);
+		if ($book !== false) {
 			$added = false;
 			$user = \Visitor::instance()->getUser();
 			if ($user !== null) {
-				$added = $user->isBookAdded($book->id);
+				$added = $user->isBookAdded($book->isbn);
 			}
 
 			$formatBooks[] = [
-				'isbn'      => $book->id,
+				'isbn'      => $book->isbn,
 				'title'     => $book->title,
 				'author'    => $book->author,
-				'url'       => $book->alt,
-				'cover'     => $book->image,
+				'cover'     => $book->cover,
 				'publisher' => $book->publisher,
 				'added'     => $added
 			];

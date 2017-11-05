@@ -111,6 +111,15 @@ class Graph {
 		return $book->findOne();
 	}
 
+	public static function findBookByTrueIsbn($isbn) {
+		if (empty($isbn)) {
+			return false;
+		}
+		$book = new MBook();
+		$book->trueIsbn = $isbn;
+		return $book->findOne();
+	}
+
 	public static function findUserAddress($userId) {
 		$address = new MUserAddress();
 		$address->userId = $userId;

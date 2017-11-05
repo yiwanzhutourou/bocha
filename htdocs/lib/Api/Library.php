@@ -105,7 +105,7 @@ class Library extends ApiBase {
 	}
 
 	// 服务器打豆瓣接口可能会炸,可能需要把获取图书信息的逻辑放在客户端
-	public function addBook($id, $isbn) {
+	public function addBook($id, $book) {
 		$this->checkAuth();
 
 		$userId = \Visitor::instance()->getUserId();
@@ -116,18 +116,14 @@ class Library extends ApiBase {
 		if ($library === false) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '图书馆不存在~');
 		}
-
-		// check book in Douban
-		$url = "https://api.douban.com/v2/book/isbn/{$isbn}";
-		$response = file_get_contents($url);
-
-		$doubanBook = json_decode($response);
+		
+		$doubanBook = json_decode($book);
 		if ($doubanBook === null || empty($doubanBook->id)) {
 			throw new Exception(Exception::RESOURCE_NOT_FOUND, '无法获取图书信息');
 		}
 
-		$book = new MBook();
-		$book->updateBook($doubanBook);
+		$bochaBook = new MBook();
+		$bochaBook->updateBook($doubanBook);
 
 		$libBook = new MLibraryBook();
 		$libBook->libId = $id;
