@@ -6,7 +6,10 @@
 
 namespace Api;
 
+use Graph\Graph;
 use Graph\MDiscoverFlow;
+use Graph\MUser;
+use Graph\MUserAddress;
 
 class Youdu extends ApiBase {
 	public function what() {
@@ -101,4 +104,75 @@ class Youdu extends ApiBase {
 
 		return 'ok';
 	}
+
+//	public function loadUserData($key) {
+//		if ($key !== '1i103rh31hr1h18hex198he1ex1oj') {
+//			return 0;
+//		}
+//		$query = new MUser();
+//		$users = $query->query("mobile LIKE '%1%'", '');
+//		$output = [];
+//		if ($users !== false) {
+//			foreach ($users as $user) {
+//				/** @var MUser $user */
+//				$bookCount = $user->getBookListCount();
+//				$cardCount = $user->getCardListCount();
+//				$address = $user->getAddressList();
+//				$cities = "";
+//				$addressText = "";
+//				if ($address !== false) {
+//					foreach ($address as $item) {
+//						/** @var MUserAddress $item */
+//						$cities .= $item->city . ' ';
+//						$addressText .= $item->name . ' ';
+//					}
+//				}
+//				$output[] = [
+//					'nickname'    => $user->nickname,
+//					'mobile'      => $user->mobile,
+//					'contact'     => $user->contact,
+//					'createTime'  => date("Y-m-d", $user->createTime),
+//					'bookCount'   => $bookCount,
+//					'cardCount'   => $cardCount,
+//					'cities'      => $cities,
+//					'addressText' => $addressText,
+//				];
+//			}
+//		}
+//
+//		usort($output, function($a, $b) {
+//			return (intval($a['bookCount']) < intval($b['bookCount'])) ? 1 : -1;
+//		});
+//
+//		echo "<table>";
+//		echo "
+//				<tr>
+//					<th>用户名</th>
+//					<th>手机号</th>
+//					<th>图书数量</th>
+//					<th>读书卡片数量</th>
+//					<th>其他联系方式</th>
+//					<th>城市</th>
+//					<th>详细地址</th>
+//					<th>注册时间</th>
+//				</tr>
+//			";
+//		foreach ($output as $item) {
+//			echo "
+//				<tr>
+//					<td>{$item['nickname']}</td>
+//					<td>{$item['mobile']}</td>
+//					<td>{$item['bookCount']}</td>
+//					<td>{$item['cardCount']}</td>
+//					<td>{$item['contact']}</td>
+//					<td>{$item['cities']}</td>
+//					<td>{$item['addressText']}</td>
+//					<td>{$item['createTime']}</td>
+//				</tr>
+//			";
+//		}
+//		echo "</table>";
+//
+//		return 0;
+//	}
 }

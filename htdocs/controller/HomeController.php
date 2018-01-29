@@ -22,32 +22,54 @@ class HomeController extends BaseController {
         flex-direction: column;
         justify-content: center;
         align-items: center;
+        background: #535354;
+      }
+      
+      .logo {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        border: 2px solid #fff;
       }
 
-      h1 {
+      .title {
         display: flex;
         justify-content: center;
         align-items: center;
+        font-size: 60px;
+        margin-top: 20px;
+        color: #fefefe;
       }
 
-      h2 {
+      .disc {
         display: flex;
         justify-content: center;
         align-items: center;
+        font-size: 24px;
+        margin-top: 20px;
+        color: #fefefe;
       }
 
       h3 {
         display: flex;
         justify-content: center;
         align-items: center;
+        color: #fefefe;
+      }
+      .qr-code {
+        width: 200px;
+        height: 200px;
+        margin-top: 20px;
       }
     </style>
   </head>
   <body>
-    <h1>有读书房</h1>
-    <h2>发现一公里内的好书</h2>
-    <h3>扫描二维码或者到微信小程序搜索“有读书房”</h3>
-    <img class="qr-code" src=""
+    <img class="logo" src="http://othb16dht.bkt.clouddn.com/logo.png?imageView2/0/format/jpg/q/75|imageslim
+" />
+    <div class="title">有读书房</div>
+    <div class="disc">发现一公里内的好书</div>
+    <div class="disc">扫描二维码或微信小程序搜索“有读书房”</div>
+    <img class="qr-code" src="http://othb16dht.bkt.clouddn.com/WechatIMG5969.jpeg" />
   </body>
 </html>
 			');
