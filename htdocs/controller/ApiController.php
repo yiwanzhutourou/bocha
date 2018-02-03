@@ -31,8 +31,8 @@ class ApiController extends BaseController {
 			$response = BoResponseData::createDefault()->jsonmode();
 			$content = json_stringify([
 										  'error' => 500,
-										  // 'message' => $e->getMessage(),
-										  'message' => '服务器发生错误了~',
+										  'message' => $e->getMessage(),
+										  // 'message' => '服务器发生错误了~',
 										  'ext' => '',
 									  ]);
 			$response->status(500)->content($content);

@@ -61,8 +61,20 @@ class Graph {
 		return $user->load();
 	}
 
+	public static function findAuthorById($id) {
+		$author = new MAuthor();
+		$author->id = $id;
+		return $author->findOne();
+	}
+
 	public static function findCardById($id) {
 		$query = new MCard();
+		$query->id = $id;
+		return $query->findOne();
+	}
+
+	public static function findArticleById($id) {
+		$query = new MArticle();
 		$query->id = $id;
 		return $query->findOne();
 	}
@@ -431,7 +443,6 @@ class Graph {
 		/** @var MBook $book */
 		if (intval($book->doubanRaters) < 20
 			|| floatval($book->doubanAverage) < 8.0) {
-			// 评分低于 7 分并且评论人数少于 50 的书不展示在发现页
 			return;
 		}
 
@@ -1387,6 +1398,60 @@ class MCard extends Data {
 				'createTime' => 'create_time',
 				'status'     => 'status',
 				'readCount'  => 'read_count',
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
+ * Class MArticle
+ * @property mixed id
+ * @property mixed authorId
+ * @property mixed title
+ * @property mixed content
+ * @property mixed picUrl
+ * @property mixed createTime
+ * @property mixed status
+ * @property mixed readCount
+ * @property mixed summary
+ */
+class MArticle extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_article',
+			'columns' => [
+				'id'           => '_id',
+				'authorId'     => 'author_id',
+				'title'        => 'title',
+				'content'      => 'content',
+				'picUrl'       => 'pic_url',
+				'createTime'   => 'create_time',
+				'status'       => 'status',
+				'readCount'    => 'read_count',
+				'summary'      => 'summary'
+			]
+		];
+		parent::init($options);
+	}
+}
+
+/**
+ * Class MAuthor
+ * @property mixed id
+ * @property mixed nickname
+ * @property mixed avatar
+ */
+class MAuthor extends Data {
+	public function __construct() {
+		$options = [
+			'key'     => 'id',
+			'table'   => 'bocha_author',
+			'columns' => [
+				'id'       => '_id',
+				'nickname' => 'nickname',
+				'avatar'   => 'avatar'
 			]
 		];
 		parent::init($options);

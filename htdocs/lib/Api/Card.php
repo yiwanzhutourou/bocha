@@ -7,6 +7,8 @@
 namespace Api;
 
 use Graph\Graph;
+use Graph\MArticle;
+use Graph\MAuthor;
 use Graph\MBook;
 use Graph\MCard;
 use Graph\MCardApproval;
@@ -16,16 +18,16 @@ use Graph\MUser;
 use Graph\MUserBook;
 
 define ('ACTIVITY_CARD_ID', 1);
-define ('ACTIVITY_CARD_TITLE', '到有读书房分享你的阅读故事');
-define ('ACTIVITY_CARD_DETAIL_TITLE', '到有读书房『写读书卡片』分享你的阅读故事');
-define ('ACTIVITY_CARD_CONTENT', "『我十三岁时，常到我爸爸的书柜里偷书看。那时候政治气氛紧张，他把所有不宜摆在外面的书都锁了起来，在那个柜子里，有奥维德的《变形记》，朱生豪译的莎翁戏剧，甚至还有《十日谈》。柜子是锁着的，但我哥哥有捅开它的方法。他还有说服我去火中取栗的办法：你小，身体也单薄，我看爸爸不好意思揍你。但实际上，在揍我这个问题上，我爸爸显得不够绅士派，我的手脚也不太灵活，总给他这种机会。总而言之，偷出书来两人看，挨揍则是我一人挨，就这样看了一些书。虽然很吃亏，但我也不后悔。』\n\n——王小波 《我的精神家园》\n\n到有读书房『写读书卡片』分享你的阅读故事，我们会定期选出优秀的作品分享给大家，并赠送给作者一本『只属于 TA』的书。");
-define('ACTIVITY_CARD_PIC', 'https://img3.doubanio.com/lpic/s28017585.jpg');
-define('ACTIVITY_CARD_BANNER_PIC', 'http://othb16dht.bkt.clouddn.com/01100000000000144734433974740_s.jpg');
+define ('ACTIVITY_CARD_TITLE', '书香筑城，阅动中山');
+define ('ACTIVITY_CARD_DETAIL_TITLE', '书香筑城，阅动中山');
+define ('ACTIVITY_CARD_CONTENT', "");
+define('ACTIVITY_CARD_PIC', 'http://othb16dht.bkt.clouddn.com/zhonshanhuodong2.jpeg');
+define('ACTIVITY_CARD_BANNER_PIC', 'http://othb16dht.bkt.clouddn.com/zhongshanhuodong1.png?imageView2/0/format/jpg/q/75|imageslim');
 
 define ('ACTIVITY_CARD_ID_2', 2);
 define ('ACTIVITY_CARD_TITLE_2', '到有读书房分享你的阅读故事');
-define ('ACTIVITY_CARD_DETAIL_TITLE_2', '到有读书房『写读书卡片』分享你的阅读故事');
-define ('ACTIVITY_CARD_CONTENT_2', "『我想起有人写过这么一句话：隐藏一片树叶的最好的地点是树林。我退休之前在藏书有九十万册的国家图书馆任职，我知道门厅右边有一道弧形的梯级通向地下室，地下室里存放报纸和地图。我趁工作人员不注意的时候，把那本沙之书偷偷地放在一个阴暗的搁架上。我竭力不去记住搁架的哪一层，离门口有多远。』\n\n——博尔赫斯《沙之书》\n\n到有读书房『写读书卡片』分享你的阅读故事，我们会定期选出优秀的作品分享给大家，并赠送给作者一本『只属于 TA』的书。");
+define ('ACTIVITY_CARD_DETAIL_TITLE_2', '到有读书房 写读书卡片 分享你的阅读故事');
+define ('ACTIVITY_CARD_CONTENT_2', "我想起有人写过这么一句话：隐藏一片树叶的最好的地点是树林。我退休之前在藏书有九十万册的国家图书馆任职，我知道门厅右边有一道弧形的梯级通向地下室，地下室里存放报纸和地图。我趁工作人员不注意的时候，把那本沙之书偷偷地放在一个阴暗的搁架上。我竭力不去记住搁架的哪一层，离门口有多远。\n\n——博尔赫斯《沙之书》\n\n到有读书房 写读书卡片 分享你的阅读故事，我们会定期选出优秀的作品分享给大家，并赠送给作者一本 只属于 TA 的书。");
 define('ACTIVITY_CARD_PIC_2', 'http://othb16dht.bkt.clouddn.com/2840081488.jpg');
 define('ACTIVITY_CARD_BANNER_PIC_2', 'http://othb16dht.bkt.clouddn.com/2840081488.jpg');
 
@@ -644,9 +646,9 @@ class Card extends ApiBase {
 		$resultList = [];
 		foreach ($discoverList as $item) {
 			/** @var MDiscoverFlow $item */
-			/** @var MUser $user */
-			$user = Graph::findUserById($item->userId);
 			if ($item->type === 'card') {
+				/** @var MUser $user */
+				$user = Graph::findUserById($item->userId);
 				/** @var MCard $card */
 				$card = Graph::findCardById($item->contentId);
 				if ($card !== false && $card->status == CARD_STATUS_NORMAL) {
@@ -669,6 +671,8 @@ class Card extends ApiBase {
 					];
 				}
 			} else if ($item->type === 'book') {
+				/** @var MUser $user */
+				$user = Graph::findUserById($item->userId);
 				/** @var MUserBook $userBook */
 				$userBook = Graph::findUserBook($item->contentId, $item->userId);
 				if ($userBook !== false) {
@@ -692,6 +696,29 @@ class Card extends ApiBase {
 						],
 					];
 				}
+			} else if ($item->type === 'article') {
+				/** @var MArticle $article */
+				$article = Graph::findArticleById($item->contentId);
+				/** @var MAuthor $author */
+				$author = Graph::findAuthorById($item->userId);
+				if ($article !== false && $article->status == CARD_STATUS_NORMAL) {
+					$resultList[] = [
+						'type' => 'article',
+						'data' => [
+							'id'            => $article->id,
+							'user'          => [
+								'id'       => $author->id,
+								'nickname' => $author->nickname,
+								'avatar'   => $author->avatar,
+							],
+							'title'         => $article->title,
+							'content'       => $article->summary,
+							'picUrl'        => $article->picUrl,
+							'createTime'    => $article->createTime,
+							'readCount'     => intval($article->readCount),
+						],
+					];
+				}
 			}
 		}
 
@@ -701,17 +728,14 @@ class Card extends ApiBase {
 		$banners = [];
 		if ($isTop) {
 			// 活动置顶
+			$banners[] = $this->createActivityItemOnlyPic();
 			$banners[] = $this->createActivityItem2();
-			$banners[] = $this->createActivityItem();
 			$acBook = $this->createNewBookItem('26830570', 'https://img3.doubanio.com/view/freyr_page_photo/raw/public/1902.jpg');
 			if ($acBook !== false) {
 				$banners[] = $acBook;
 			}
 			$banners[] = $this->createCardItem('54');
-//			$acBook = $this->createNewBookItem('27069925');
-//			if ($acBook !== false) {
-//				$banners[] = $acBook;
-//			}
+			$banners[] = $this->createArticleItem('1');
 		}
 
 		return [
@@ -752,6 +776,20 @@ class Card extends ApiBase {
 		return -1;
 	}
 
+	private function createActivityItemOnlyPic() {
+		/** @var MCard $card */
+		$card = Graph::findCardById(ACTIVITY_CARD_ID);
+		return [
+			'type' => 'card',
+			'data' => [
+				'id'            => ACTIVITY_CARD_ID,
+				'title'         => ACTIVITY_CARD_TITLE,
+				'picUrl'        => ACTIVITY_CARD_BANNER_PIC,
+				'fullPic'       => ACTIVITY_CARD_PIC,
+			],
+		];
+	}
+
 	private function createActivityItem() {
 		/** @var MCard $card */
 		$card = Graph::findCardById(ACTIVITY_CARD_ID);
@@ -787,6 +825,19 @@ class Card extends ApiBase {
 				'id'            => $id,
 				'title'         => $card->title,
 				'picUrl'        => $card->picUrl,
+			],
+		];
+	}
+
+	private function createArticleItem($id) {
+		/** @var MArticle $article */
+		$article = Graph::findArticleById($id);
+		return [
+			'type' => 'article',
+			'data' => [
+				'id'            => $id,
+				'title'         => $article->title,
+				'picUrl'        => $article->picUrl,
 			],
 		];
 	}

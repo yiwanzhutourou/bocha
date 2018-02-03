@@ -542,7 +542,7 @@ class User extends ApiBase {
 			$userBook->leftCount = 1; // 暂时默认都是 1 本书
 			if ($userBook->insert() > 0) {
 				// 检查并添加新图书到发现流
-				Graph::addNewBookToDiscoverFlow($book, $userBook);
+				Graph::addNewBookToDiscoverFlow($bochaBook, $userBook);
 			}
 		}
 		return 'ok';
