@@ -18,6 +18,7 @@ class Exception extends \Exception {
 	const AUTH_FAILED_NO_MOBILE = 2009;
 
 	const WEIXIN_AUTH_FAILED = 3001;
+	const WEIXIN_RETURN_FAILED = 3002;
 
 	const RESOURCE_NOT_FOUND = 4001;
 	const RESOURCE_ALREADY_ADDED = 4002;

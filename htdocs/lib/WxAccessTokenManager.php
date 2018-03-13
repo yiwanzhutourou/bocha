@@ -50,7 +50,7 @@ class WxAccessTokenManager {
 
 		if (!empty($response->access_token)) {
 			$this->access_token = $response->access_token;
-			$this->expire_time = time() + ($response->expires_in - 300) * 1000;
+			$this->expire_time = time() + $response->expires_in - 300;
 
 			$newXu = new \Graph\MXu();
 			$newXu->name = self::TOKEN_KEY;

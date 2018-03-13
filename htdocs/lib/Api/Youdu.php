@@ -12,6 +12,36 @@ use Graph\MUser;
 use Graph\MUserAddress;
 
 class Youdu extends ApiBase {
+
+	public function getQRCode($page) {
+		$access_token = \WxAccessTokenManager::instance()->getAccessToken();
+		if ($access_token === false) {
+			throw new Exception(Exception::WEIXIN_RETURN_FAILED, '无法生成二维码');
+		}
+		$url = "https://api.weixin.qq.com/wxa/getwxacode?access_token={$access_token}";
+		$data = array(
+			'path' => $page
+		);
+
+		$options = array(
+			'http' => array(
+				'header'  => "Content-type:application/json",
+				'method'  => 'POST',
+				'content' => json_encode($data, true),
+				'timeout' => 60
+			)
+		);
+
+		$context = stream_context_create($options);
+		$result = file_get_contents($url, false, $context);
+
+		if ($result === false) {
+			throw new Exception(Exception::WEIXIN_RETURN_FAILED, '无法生成二维码');
+		}
+
+		return $result;
+	}
+
 	public function what() {
 		return 'Bocha';
 	}
