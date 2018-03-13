@@ -638,38 +638,38 @@ class Card extends ApiBase {
 			$condition = "status = '1' and create_time < {$cursor}";
 		}
 
-		// 一次请求发 20 条数据
+		// 一次请求发 40 条数据
 		$query = new MDiscoverFlow();
 		$discoverList = $query->query($condition,
-								  'ORDER BY create_time DESC LIMIT 0,20');
+								  'ORDER BY create_time DESC LIMIT 0,40');
 
 		$resultList = [];
 		foreach ($discoverList as $item) {
 			/** @var MDiscoverFlow $item */
 			if ($item->type === 'card') {
-				/** @var MUser $user */
-				$user = Graph::findUserById($item->userId);
-				/** @var MCard $card */
-				$card = Graph::findCardById($item->contentId);
-				if ($card !== false && $card->status == CARD_STATUS_NORMAL) {
-					$resultList[] = [
-						'type' => 'card',
-						'data' => [
-							'id'            => $card->id,
-							'user'          => [
-								'id'       => $user->id,
-								'nickname' => $user->nickname,
-								'avatar'   => $user->avatar,
-							],
-							'title'         => $card->title,
-							'content'       => mb_substr($card->content, 0, 48, 'utf-8'),
-							'picUrl'        => getListThumbnailUrl($card->picUrl),
-							'createTime'    => $card->createTime,
-							'readCount'     => intval($card->readCount),
-							'approvalCount' => Graph::getCardApprovalCount($card->id),
-						],
-					];
-				}
+//				/** @var MUser $user */
+//				$user = Graph::findUserById($item->userId);
+//				/** @var MCard $card */
+//				$card = Graph::findCardById($item->contentId);
+//				if ($card !== false && $card->status == CARD_STATUS_NORMAL) {
+//					$resultList[] = [
+//						'type' => 'card',
+//						'data' => [
+//							'id'            => $card->id,
+//							'user'          => [
+//								'id'       => $user->id,
+//								'nickname' => $user->nickname,
+//								'avatar'   => $user->avatar,
+//							],
+//							'title'         => $card->title,
+//							'content'       => mb_substr($card->content, 0, 48, 'utf-8'),
+//							'picUrl'        => getListThumbnailUrl($card->picUrl),
+//							'createTime'    => $card->createTime,
+//							'readCount'     => intval($card->readCount),
+//							'approvalCount' => Graph::getCardApprovalCount($card->id),
+//						],
+//					];
+//				}
 			} else if ($item->type === 'book') {
 				/** @var MUser $user */
 				$user = Graph::findUserById($item->userId);
@@ -678,47 +678,58 @@ class Card extends ApiBase {
 				if ($userBook !== false) {
 					/** @var MBook $book */
 					$book = Graph::findBook($item->contentId);
-					$resultList[] = [
-						'type' => 'book',
-						'data' => [
-							'isbn'         => $book->isbn,
-							'user'       => [
-								'id'       => $user->id,
-								'nickname' => $user->nickname,
-								'avatar'   => $user->avatar,
+					// TODO 图书去重
+					$duplicate = false;
+					foreach($resultList as $k => $v){
+						if ($v['type'] === 'book'
+							&& $v['data']['isbn'] === $book->isbn){
+							$duplicate = true;
+							break;
+						}
+					}
+					if (!$duplicate) {
+						$resultList[] = [
+							'type' => 'book',
+							'data' => [
+								'isbn'         => $book->isbn,
+								'user'       => [
+									'id'       => $user->id,
+									'nickname' => $user->nickname,
+									'avatar'   => $user->avatar,
+								],
+								'title'      => $book->title,
+								'author'     => self::parseAuthor($book->author),
+								'cover'      => $book->cover,
+								'publisher'  => $book->publisher,
+								'summary'    => $book->summary,
+								'createTime' => $userBook->createTime,
 							],
-							'title'      => $book->title,
-							'author'     => self::parseAuthor($book->author),
-							'cover'      => $book->cover,
-							'publisher'  => $book->publisher,
-							'summary'    => $book->summary,
-							'createTime' => $userBook->createTime,
-						],
-					];
+						];
+					}
 				}
 			} else if ($item->type === 'article') {
-				/** @var MArticle $article */
-				$article = Graph::findArticleById($item->contentId);
-				/** @var MAuthor $author */
-				$author = Graph::findAuthorById($item->userId);
-				if ($article !== false && $article->status == CARD_STATUS_NORMAL) {
-					$resultList[] = [
-						'type' => 'article',
-						'data' => [
-							'id'            => $article->id,
-							'user'          => [
-								'id'       => $author->id,
-								'nickname' => $author->nickname,
-								'avatar'   => $author->avatar,
-							],
-							'title'         => $article->title,
-							'content'       => $article->summary,
-							'picUrl'        => $article->picUrl,
-							'createTime'    => $article->createTime,
-							'readCount'     => intval($article->readCount),
-						],
-					];
-				}
+//				/** @var MArticle $article */
+//				$article = Graph::findArticleById($item->contentId);
+//				/** @var MAuthor $author */
+//				$author = Graph::findAuthorById($item->userId);
+//				if ($article !== false && $article->status == CARD_STATUS_NORMAL) {
+//					$resultList[] = [
+//						'type' => 'article',
+//						'data' => [
+//							'id'            => $article->id,
+//							'user'          => [
+//								'id'       => $author->id,
+//								'nickname' => $author->nickname,
+//								'avatar'   => $author->avatar,
+//							],
+//							'title'         => $article->title,
+//							'content'       => $article->summary,
+//							'picUrl'        => $article->picUrl,
+//							'createTime'    => $article->createTime,
+//							'readCount'     => intval($article->readCount),
+//						],
+//					];
+//				}
 			}
 		}
 
@@ -728,14 +739,14 @@ class Card extends ApiBase {
 		$banners = [];
 		if ($isTop) {
 			// 活动置顶
-			$banners[] = $this->createActivityItemOnlyPic();
-			$banners[] = $this->createActivityItem2();
-			$acBook = $this->createNewBookItem('26830570', 'https://img3.doubanio.com/view/freyr_page_photo/raw/public/1902.jpg');
+			$acBook = $this->createNewBookItem('27199470', 'https://img01.yit.com/media/3c1f48ed-9032-40d3-87dd-12eee304d675.jpg');
 			if ($acBook !== false) {
 				$banners[] = $acBook;
 			}
-			$banners[] = $this->createCardItem('54');
-			$banners[] = $this->createArticleItem('1');
+			$banners[] = $this->createActivityItemOnlyPic();
+			// $banners[] = $this->createActivityItem2();
+			// $banners[] = $this->createCardItem('54');
+			// $banners[] = $this->createArticleItem('1');
 		}
 
 		return [
@@ -745,7 +756,7 @@ class Card extends ApiBase {
 			'bottomCursor'     => $bottomCursor,
 			'bookTopCursor'    => -1, // 结构改了，暂时没有用了
 			'bookBottomCursor' => -1,
-			'showPost'         => true,
+			'showPost'         => false,
 		];
 	}
 
@@ -838,6 +849,42 @@ class Card extends ApiBase {
 				'id'            => $id,
 				'title'         => $article->title,
 				'picUrl'        => $article->picUrl,
+			],
+		];
+	}
+
+	private function createBookItem($isbn, $bookPic) {
+
+		/** @var MBook $bochaBook */
+		$bochaBook = Graph::findBook($isbn);
+		if ($bochaBook !== false) {
+			return [
+				'type' => 'book',
+				'data' => [
+					'id'     => $bochaBook->isbn,
+					'title'  => "图书推荐: {$bochaBook->title}",
+					'picUrl' => $bookPic,
+				],
+			];
+		}
+
+		// 这里的豆瓣接口无所谓,自己能控制,而且第一次有人打了这个接口,自己数据库里也就有了
+		// 目前这里是唯一一处,其他地方都要删
+		$url = "https://api.douban.com/v2/book/{$isbn}";
+		$response = file_get_contents($url);
+		$doubanBook = json_decode($response);
+		if ($doubanBook === null || empty($doubanBook->id)) {
+			return false;
+		}
+
+		$book = new MBook();
+		$book->updateBook($doubanBook);
+		return [
+			'type' => 'book',
+			'data' => [
+				'id'            => $book->isbn,
+				'title'         => "图书推荐: {$book->title}",
+				'picUrl'        => $bookPic,
 			],
 		];
 	}
