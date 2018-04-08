@@ -647,29 +647,29 @@ class Card extends ApiBase {
 		foreach ($discoverList as $item) {
 			/** @var MDiscoverFlow $item */
 			if ($item->type === 'card') {
-//				/** @var MUser $user */
-//				$user = Graph::findUserById($item->userId);
-//				/** @var MCard $card */
-//				$card = Graph::findCardById($item->contentId);
-//				if ($card !== false && $card->status == CARD_STATUS_NORMAL) {
-//					$resultList[] = [
-//						'type' => 'card',
-//						'data' => [
-//							'id'            => $card->id,
-//							'user'          => [
-//								'id'       => $user->id,
-//								'nickname' => $user->nickname,
-//								'avatar'   => $user->avatar,
-//							],
-//							'title'         => $card->title,
-//							'content'       => mb_substr($card->content, 0, 48, 'utf-8'),
-//							'picUrl'        => getListThumbnailUrl($card->picUrl),
-//							'createTime'    => $card->createTime,
-//							'readCount'     => intval($card->readCount),
-//							'approvalCount' => Graph::getCardApprovalCount($card->id),
-//						],
-//					];
-//				}
+				/** @var MUser $user */
+				$user = Graph::findUserById($item->userId);
+				/** @var MCard $card */
+				$card = Graph::findCardById($item->contentId);
+				if ($card !== false && $card->status == CARD_STATUS_NORMAL) {
+					$resultList[] = [
+						'type' => 'card',
+						'data' => [
+							'id'            => $card->id,
+							'user'          => [
+								'id'       => $user->id,
+								'nickname' => $user->nickname,
+								'avatar'   => $user->avatar,
+							],
+							'title'         => $card->title,
+							'content'       => mb_substr($card->content, 0, 48, 'utf-8'),
+							'picUrl'        => getListThumbnailUrl($card->picUrl),
+							'createTime'    => $card->createTime,
+							'readCount'     => intval($card->readCount),
+							'approvalCount' => Graph::getCardApprovalCount($card->id),
+						],
+					];
+				}
 			} else if ($item->type === 'book') {
 				/** @var MUser $user */
 				$user = Graph::findUserById($item->userId);
@@ -756,7 +756,7 @@ class Card extends ApiBase {
 			'bottomCursor'     => $bottomCursor,
 			'bookTopCursor'    => -1, // 结构改了，暂时没有用了
 			'bookBottomCursor' => -1,
-			'showPost'         => false,
+			'showPost'         => true,
 		];
 	}
 
