@@ -6,6 +6,7 @@
 
 namespace Api;
 
+use Formatter\DoubanFormatter;
 use Graph\Graph;
 use Graph\MBook;
 use Graph\MBorrowRequest;
@@ -33,67 +34,63 @@ class Book extends ApiBase {
 		return $resultList;
 	}
 
-	// 移到客户端了,可以删了
-	public function search($key, $count = 20, $page = 0) {
+	// start 这里指 page
+	public function search($q, $count = 20, $start = 0) {
 		$url = "https://api.douban.com/v2/book/search?"
 			. http_build_query([
-				'q'     => $key,
-				'start' => $count * $page,
+				'q'     => $q,
+				'start' => $count * $start,
 				'count' => $count
 			]);
 		$response = file_get_contents($url);
 
 		$json = json_decode($response);
-		$books = $json->books;
-		if ($books !== null) {
-			$formatBooks = [];
-			
-			foreach ($books as $book) {
-				$added = false;
-				$user = \Visitor::instance()->getUser();
-				if ($user !== null) {
-					$added = $user->isBookAdded($book->id);
-				}
+//		$books = $json->books;
+//		if ($books !== null) {
+//		    // TODO update all books ?
+//		}
 
-				$formatBooks[] = [
-					'isbn'      => $book->id,
-					'title'     => $book->title,
-					'author'    => $book->author,
-					'url'       => $book->alt,
-					'cover'     => $book->image,
-					'publisher' => $book->publisher,
-					'added'     => $added
-				];
-			}
-			return $formatBooks;
-		} else {
-			return [];
-		}
+		return $json;
 	}
+
+	public function getBook($isbn) {
+	    /** @var MBook $book */
+	    $book = Graph::findBook($isbn);
+	    if ($book === false || empty($book->price)) {
+            // check book in Douban
+            $url = "https://api.douban.com/v2/book/{$isbn}";
+            $response = file_get_contents($url);
+
+            $doubanBook = json_decode($response);
+            if ($doubanBook === null || empty($doubanBook->id)) {
+                throw new Exception(Exception::RESOURCE_NOT_FOUND, '无法获取图书信息');
+            } else {
+                $book = new MBook();
+                $book->updateBook($doubanBook);
+            }
+        }
+
+        return DoubanFormatter::bookDetail($book);
+    }
 
 	public function getBookByIsbn($isbn) {
 		/** @var MBook $book */
 		$book = Graph::findBookByTrueIsbn($isbn);
-		if ($book !== false) {
-			$added = false;
-			$user = \Visitor::instance()->getUser();
-			if ($user !== null) {
-				$added = $user->isBookAdded($book->isbn);
-			}
+        if ($book === false || empty($book->price)) {
+            // check book in Douban
+            $url = "https://api.douban.com/v2/book/isbn/{$isbn}";
+            $response = file_get_contents($url);
 
-			$formatBooks[] = [
-				'isbn'      => $book->isbn,
-				'title'     => $book->title,
-				'author'    => $book->author,
-				'cover'     => $book->cover,
-				'publisher' => $book->publisher,
-				'added'     => $added
-			];
+            $doubanBook = json_decode($response);
+            if ($doubanBook === null || empty($doubanBook->id)) {
+                throw new Exception(Exception::RESOURCE_NOT_FOUND, '无法获取图书信息');
+            } else {
+                $book = new MBook();
+                $book->updateBook($doubanBook);
+            }
+        }
 
-			return $formatBooks;
-		} else {
-			return [];
-		}
+        return DoubanFormatter::bookDetail($book);
 	}
 
 	public function getBorrowPageData($userId) {

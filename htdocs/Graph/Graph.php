@@ -1137,6 +1137,23 @@ class MUserBook extends Data {
  * @property mixed summary
  * @property mixed doubanAverage
  * @property mixed doubanRaters
+ * @property mixed rating
+ * @property mixed subtitle
+ * @property mixed pubDate
+ * @property mixed tags
+ * @property mixed originTitle
+ * @property mixed binding
+ * @property mixed translator
+ * @property mixed catalog
+ * @property mixed pages
+ * @property mixed images
+ * @property mixed alt
+ * @property mixed isbn10
+ * @property mixed url
+ * @property mixed altTitle
+ * @property mixed authorIntro
+ * @property mixed series
+ * @property mixed price
  */
 class MBook extends Data {
 	public function __construct() {
@@ -1154,12 +1171,31 @@ class MBook extends Data {
 				'summary'       => 'summary',
 				'doubanAverage' => 'douban_average',
 				'doubanRaters'  => 'douban_raters',
+                // new
+                'rating'        => 'rating',
+                'subtitle'      => 'subtitle',
+                'pubDate'       => 'pub_date',
+                'tags'          => 'tags',
+                'originTitle'   => 'origin_title',
+                'binding'       => 'binding',
+                'translator'    => 'translator',
+                'catalog'       => 'catalog',
+                'pages'         => 'pages',
+                'images'        => 'images',
+                'alt'           => 'alt',
+                'isbn10'        => 'isbn10',
+                'url'           => 'url',
+                'altTitle'      => 'alt_title',
+                'authorIntro'   => 'author_intro',
+                'series'        => 'series',
+                'price'         => 'price',
 			]
 		];
 		parent::init($options);
 	}
 
 	public function updateBook($doubanBook) {
+	    /** @var \Graph\DoubanBook $doubanBook */
 		$this->isbn = $doubanBook->id;
 		/** @var MBook $one */
 		$one = $this->findOne();
@@ -1174,7 +1210,7 @@ class MBook extends Data {
 		}
 		$this->publisher = $doubanBook->publisher;
 		$this->trueIsbn = empty($doubanBook->isbn13) ? 'fake_isbn' : $doubanBook->isbn13;
-		$this->summary = $doubanBook->summary;
+		$this->summary = Graph::escape($doubanBook->summary);
 		$this->doubanAverage = 0;
 		$this->doubanRaters = 0;
 		if (!empty($doubanBook->rating)) {
@@ -1185,6 +1221,23 @@ class MBook extends Data {
 				$this->doubanRaters = $doubanBook->rating->numRaters;
 			}
 		}
+        $this->rating = json_stringify($doubanBook->rating);
+        $this->subtitle = Graph::escape($doubanBook->subtitle);
+        $this->pubDate = Graph::escape($doubanBook->pubdate);
+        $this->tags = Graph::escape(json_stringify($doubanBook->tags));
+        $this->originTitle = Graph::escape($doubanBook->origin_title);
+        $this->binding = Graph::escape($doubanBook->binding);
+        $this->translator = Graph::escape(json_stringify($doubanBook->translator));
+        $this->catalog = Graph::escape($doubanBook->catalog);
+        $this->pages = $doubanBook->pages;
+        $this->images = json_stringify($doubanBook->images);
+        $this->alt = $doubanBook->alt;
+        $this->isbn10 = $doubanBook->isbn10;
+        $this->url = $doubanBook->url;
+        $this->altTitle = Graph::escape($doubanBook->alt_title);
+        $this->authorIntro = Graph::escape($doubanBook->author_intro);
+        $this->series = Graph::escape(json_stringify($doubanBook->series));
+        $this->price = Graph::escape($doubanBook->price);
 		if ($one === false) {
 			$this->insert();
 		} else {
@@ -1668,3 +1721,33 @@ class MLibraryBook extends Data {
 		parent::init($options);
 	}
 }
+
+/**
+ * Class DoubanBook
+ *
+ * @property mixed rating
+ * @property mixed subtitle
+ * @property mixed author
+ * @property mixed pubdate
+ * @property mixed tags
+ * @property mixed origin_title
+ * @property mixed image
+ * @property mixed binding
+ * @property mixed translator
+ * @property mixed catalog
+ * @property mixed pages
+ * @property mixed images
+ * @property mixed alt
+ * @property mixed id
+ * @property mixed publisher
+ * @property mixed isbn10
+ * @property mixed isbn13
+ * @property mixed title
+ * @property mixed url
+ * @property mixed alt_title
+ * @property mixed author_intro
+ * @property mixed summary
+ * @property mixed series
+ * @property mixed price
+ */
+class DoubanBook {}

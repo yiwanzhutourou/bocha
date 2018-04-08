@@ -31,6 +31,7 @@ class ApiController extends BaseController {
 			$response = BoResponseData::createDefault()->jsonmode();
 			$content = json_stringify([
 										  'error' => 500,
+										  // TODO 报错
 										  // 'message' => $e->getMessage(),
 										  'message' => '服务器发生错误了~',
 										  'ext' => '',
@@ -65,12 +66,42 @@ class ApiController extends BaseController {
 		$this->checkParams($request);
 		$uri = $request->uri();
 		$requestData = $this->rawRequestData($request);
+
+		//----- hard code 转发一下豆瓣的几个接口
+        $isDoubanApi = false;
+        $paths = explode('/', ltrim($uri, '/'));
+        if (count($paths) > 1 && $paths[0] === 'v2') {
+            if (count($paths) === 4 && $paths[1] === 'book'
+                    && $paths[2] === 'isbn') {
+                $uri = '/api/Book.getBookByIsbn';
+                $requestData = array_merge($requestData, [
+                    'isbn' => $paths[3],
+                ]);
+                $isDoubanApi = true;
+            } else if (count($paths) === 3 && $paths[1] === 'book'
+                && $paths[2] === 'search') {
+                $uri = '/api/Book.search';
+                $isDoubanApi = true;
+            } else if (count($paths) === 3 && $paths[1] === 'book') {
+                $uri = '/api/Book.getBook';
+                $requestData = array_merge($requestData, [
+                    'isbn' => $paths[2],
+                ]);
+                $isDoubanApi = true;
+            }
+        }
+        // -----
+
 		$cmd = new ApiCmd($uri, $requestData);
 		$cmd->run();
 
-		$output = [
-			'result' => $cmd->result
-		];
+		if ($isDoubanApi) {
+            $output = $cmd->result;
+        } else {
+            $output = [
+                'result' => $cmd->result
+            ];
+        }
 
 		return $response->content(json_stringify($output));
 	}

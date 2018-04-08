@@ -10,7 +10,8 @@ $request = BoRequest::instance();
 $response = BoResponse::instance();
 
 $routing_map = [
-	'/api/' => 'ApiController',
+    '/api/' => 'ApiController',
+    '/v2/' => 'ApiController',
 	'/' => 'HomeController',
 ];
 
